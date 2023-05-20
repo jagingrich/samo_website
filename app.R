@@ -12,16 +12,21 @@ library(shinyjs)
 oauth_endpoints("github")
 
 # API authorization settings
+gitrepo <- "jagingrich/samo_website"
 myapp <- oauth_app(appname = "Samo_Web_Data",
-                   key = "#####",
-                   secret = "#####")
+                   key = "####################",
+                   secret = "########################################")
 
 # Get OAuth credentials
 gtoken <- config(token = oauth2.0_token(oauth_endpoints("github"), myapp))
 rm(myapp)
 
-#gtoken <- readRDS("./Data/github_token.rds")
-gitrepo <- "jagingrich/samo_website"
+#Use API
+req <- GET(paste0("https://api.github.com/repos/", gitrepo, "/git/trees/main?recursive=1"), gtoken)
+stop_for_status(req)
+ct = content(req)
+ct <- ct$tree
+rm(req)
 
 #reading monuments .gpkg file
 gpkg_path <- paste0("https://raw.githubusercontent.com/", gitrepo, "/main/Data/mapFeatures/AES_Monuments_20230207.gpkg")
@@ -58,13 +63,7 @@ mt_names <- unique(mt_names %>%
                      arrange(as.numeric(num)) %>%
                      pull(Name))
 
-# Use API
-req <- GET(paste0("https://api.github.com/repos/", gitrepo, "/git/trees/main?recursive=1"), gtoken)
-stop_for_status(req)
-ct = content(req)
-ct <- ct$tree
-rm(req)
-
+# Pull data from API
 pull_data <- function(filterPhrase = NULL, filterInvert = F) {
   #reading all files in tree
   paths <- vector()
@@ -74,25 +73,19 @@ pull_data <- function(filterPhrase = NULL, filterInvert = F) {
   
   for (i in ct) {
     item <- i
-    if(grepl("Data", item$path)) {
-      paths <- append(paths, item$path)
-      name_i <- unlist(strsplit(item$path, "/"))
-      name_i <- name_i[length(name_i)]
-      names <- append(names, name_i)
-      if (item$type == "blob") {
-        type_i <- unlist(lapply(strsplit(name_i, "[.]"), `[[`, 2))
-      } else {
-        type_i <- item$type
-      }
-      types <- append(types, type_i)
-      url_i <- paste0("https://api.github.com/repos/", gitrepo, "/contents/", item$path)
-      url_i <- gsub(" ", "%20", url_i)
-      download_urls <- append(download_urls, url_i)
-      rm(name_i)
-      rm(type_i)
-      rm(url_i)
+    paths <- append(paths, item$path)
+    name_i <- unlist(strsplit(item$path, "/"))
+    name_i <- name_i[length(name_i)]
+    names <- append(names, name_i)
+    if (item$type == "blob") {
+      type_i <- unlist(lapply(strsplit(name_i, "[.]"), `[[`, 2))
+    } else {
+      type_i <- item$type
     }
-    rm(item)
+    types <- append(types, type_i)
+    url_i <- paste0("https://api.github.com/repos/", gitrepo, "/contents/", item$path)
+    url_i <- gsub(" ", "%20", url_i)
+    download_urls <- append(download_urls, url_i)
   }
   
   #table of files
@@ -104,11 +97,6 @@ pull_data <- function(filterPhrase = NULL, filterInvert = F) {
         filter(path %in% df$path[grep(paste0("\\", i), df$path, invert=filterInvert, ignore.case=T)])
     }
   }
-  #remove loading vectors
-  rm(names)
-  rm(types)
-  rm(paths)
-  rm(download_urls)
   
   #output
   return(df)
@@ -128,9 +116,10 @@ crosstab <- merge(data.frame("Labels" = c("0", unlist(lapply(strsplit(mt_names, 
                   data.frame("Labels" = unlist(lapply(strsplit(mt_files, "\\(|\\)"), `[[`, 2)), "File_ID" = mt_files), by = "Labels", all=T)
 
 #reading elements from description .txt files
-read_txt <- function(filename) {
+read_desc <- function(filename) {
   #reading description from file on github API
-  txts <- pull_data(filename) %>%
+  df <- pull_data(filename)
+  txts <- df %>%
     filter(type == "txt")
   req <- GET(txts %>%
                pull(download_url),
@@ -141,9 +130,6 @@ read_txt <- function(filename) {
   txt <- txt[txt!=""]
   txt <- txt[txt!="\t"]
   rm(req)
-  
-  #removing paragraph formatting tags
-  remove <- "\\[image|Title:|Monument:|Part:|Date:|Material:|Location:|Caption:|INCLUDEPICTURE|Bibliography"
   
   #generating name
   if (sum(grepl("Monument:|Title:", txt, ignore.case = T)) != 0) {
@@ -185,24 +171,20 @@ read_txt <- function(filename) {
   body_index <- ifelse(grepl("caption:", body, ignore.case = T), "caption", "body")
   body <- gsub("Caption: ", "", body)
   
+  #reading images
+  imgs <- df$download_url[grep("Image", df$name, ignore.case = T)]
+  
   #output
-  desc_out <- list("name" = name, "header" = header, "body_index" = body_index, "body" = body, "footer" = footer)
+  desc_out <- list("name" = name, "header" = header, "body_index" = body_index, "body" = body, "footer" = footer, "images" = imgs)
   return(desc_out)
 }
 
-load_imgs <- function(filename) {
-  imgs <- pull_data(c(filename, "Image"))
-  img_path <- vector("character", 10)
-  if (length(imgs$download_url) != 0) {
-    for (i in 1:length(imgs$download_url)) {
-      req <- GET(imgs$download_url[i],
-                 gtoken)
-      img_path[i] <- content(req)$download_url
-    }
-  }
-  img_path[img_path == ""] <- NA
-  return(img_path)
+#reading in all descriptions
+allDesc <- list()
+for (i in crosstab$File_ID) {
+  allDesc <- append(allDesc, list(read_desc(i)))
 }
+names(allDesc) <- crosstab$File_ID
 
 #Color palette for phases
 pal <- c("1" = "#94d1e7",
@@ -264,9 +246,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   #saving screen width value
-  v <- reactiveValues(width = NULL,
-                      text = NULL,
-                      img = NULL) 
+  v <- reactiveValues(width = NULL) 
   
   #creating map
   output$map <- renderLeaflet({
@@ -317,16 +297,8 @@ server <- function(input, output, session) {
   
   output$date <- renderUI({HTML("</br>---</br>Plan date: 2016-2019. Dates provided in the legend based on the interpretations by the Lehmanns.")})
   
-  observeEvent({
-    input$dimension
-    input$features
-  }, {
+  observeEvent(input$dimension, {
     v$width <- paste0(round(input$dimension[1] * 0.38), "px")
-  })
-  
-  observeEvent({
-    v$width
-  }, {
     proxy <- leafletProxy("map")
     if(input$features == "") { #no selection
       #zoom to all features
@@ -353,61 +325,57 @@ server <- function(input, output, session) {
       fitBounds(proxy, focus[1], focus[2], focus[3], focus[4])
     }
     
-    #decription outputs
-    v$text <- read_txt(crosstab %>%
-                         filter(Names == input$features) %>%
-                         pull(File_ID))
+    #subsetting descriptions on click
+    desc <- allDesc[[crosstab %>%
+                       filter(Names == input$features) %>%
+                       pull(File_ID)]]
     
-    v$img <- load_imgs(crosstab %>%
-                         filter(Names == input$features) %>%
-                         pull(File_ID))
-    
-    if(is.na(v$text$name)) {
+    if(is.na(desc$name)) {
       hide("title")
     } else {
       output$title <- renderUI({
-        HTML(paste0(v$text$name, "</br>"))
+        HTML(paste0(desc$name, "</br>"))
       })
       show("title")
     }
     
-    if(is.na(v$text$header)) {
+    if(is.na(desc$header)) {
       hide("header")
     } else {
       output$header <- renderUI({
-        HTML(paste0(v$text$header, "</br>---</br>"))
+        HTML(paste0(desc$header, "</br>---</br>"))
       })
       show("header")
     }
     
     output$body <- renderUI({
       tag_list <- function(number) {
-        if (v$text$body_index[number] == "body") {
-          out <- tagList(tags$text(HTML(paste0(v$text$body[number], "</br></br>")), 
+        if (desc$body_index[number] == "body") {
+          out <- tagList(tags$text(HTML(paste0(desc$body[number], "</br></br>")), 
                                    style = "font-size:16px;"))
         } else {
-          caps <- v$text$body[v$text$body_index == "caption"] 
-          cap_index <- (1:length(caps))[caps == v$text$body[number]]
+          caps <- desc$body[desc$body_index == "caption"] 
+          cap_index <- (1:length(caps))[caps == desc$body[number]]
           out <- tagList(
-            tags$img(src = v$img[cap_index],
+            tags$img(src = desc$images[cap_index],
                      width = v$width),
-            tags$text(HTML(paste0("</br>", v$text$body[number], "</br></br>")), 
+            tags$text(HTML(paste0("</br>", desc$body[number], "</br></br>")), 
                       style = "font-size:14px;"))
         }
         return(out)
       }
       tl <- tagList()
-      for (i in 1:length(v$text$body)){
+      for (i in 1:length(desc$body)){
         tl <- append(tl, tag_list(i))
       }
       tagList(tl)
     })
     
-    if(is.na(v$text$footer)) {
+    if(is.na(desc$footer)) {
       hide("footer")
     } else {
       output$footer <- renderUI({
-        HTML(paste0("</br>---</br>", v$text$footer, "</br></br>"))
+        HTML(paste0("</br>---</br>", desc$footer, "</br></br>"))
       })
       show("footer")
     }
