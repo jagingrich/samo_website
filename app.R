@@ -13,8 +13,8 @@ oauth_endpoints("github")
 
 # API authorization settings
 myapp <- oauth_app(appname = "Samo_Web_Data",
-                   key = "8f642e251fbbf078a371",
-                   secret = "43b97ca8b3cfc9296485d052a9a4098043149c34")
+                   key = "#####",
+                   secret = "#####")
 
 # Get OAuth credentials
 gtoken <- config(token = oauth2.0_token(oauth_endpoints("github"), myapp))
