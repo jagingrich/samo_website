@@ -1,4 +1,4 @@
-# Code and data creating the interactive map plan for the Sanctuary of the Great Gods, Samothrace
+# Interactive Map Plan for the Sanctuary of the Great Gods, Samothrace
 
 Code, text, images, and GIS files that support this Shiny interactive map: Jared Gingrich, May 20, 2023
 
