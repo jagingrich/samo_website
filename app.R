@@ -3,29 +3,33 @@ library(jsonlite)
 library(httpuv)
 library(httr)
 library(leaflet)
-library(leafem)
 library(tidyverse)
 library(sf)
 library(shinyjs)
 
-#github repository
-oauth_endpoints("github")
-
-# API authorization settings
-gitrepo <- "jagingrich/samo_website"
-myapp <- oauth_app(appname = "Samo_Web_Data",
-                   key = "####################",
-                   secret = "########################################")
-
 # Get OAuth credentials
-gtoken <- config(token = oauth2.0_token(oauth_endpoints("github"), myapp))
-rm(myapp)
+gtoken <- readRDS("./Data/github_token.rds")
+#github repository
+gitrepo <- "jagingrich/samo_website"
 
-#Use API
+#Use API to read all files in github repository to table
 req <- GET(paste0("https://api.github.com/repos/", gitrepo, "/git/trees/main?recursive=1"), gtoken)
 stop_for_status(req)
 ct = content(req)
 ct <- ct$tree
+for (i in 1:length(ct)) {
+  ct[[i]]$size <- NULL
+  ct[[i]]$sha <- NULL
+  ct[[i]]$mode <- NULL
+  name_i <- unlist(strsplit(ct[[i]]$path, "/"))
+  name_i <- name_i[length(name_i)]
+  ct[[i]]$name <- name_i
+  if (ct[[i]]$type == "blob") {
+    ct[[i]]$type <- unlist(lapply(strsplit(name_i, "[.]"), `[[`, 2))
+  }
+  ct[[i]]$download_url <- gsub(" ", "%20", paste0("https://raw.githubusercontent.com/", gitrepo, "/main/", ct[[i]]$path))
+}
+ct <- do.call(rbind, lapply(ct, data.frame))
 rm(req)
 
 #reading monuments .gpkg file
@@ -63,51 +67,29 @@ mt_names <- unique(mt_names %>%
                      arrange(as.numeric(num)) %>%
                      pull(Name))
 
-# Pull data from API
-pull_data <- function(filterPhrase = NULL, filterInvert = F) {
-  #reading all files in tree
-  paths <- vector()
-  names <- vector()
-  types <- vector()
-  download_urls <- vector()
-  
-  for (i in ct) {
-    item <- i
-    paths <- append(paths, item$path)
-    name_i <- unlist(strsplit(item$path, "/"))
-    name_i <- name_i[length(name_i)]
-    names <- append(names, name_i)
-    if (item$type == "blob") {
-      type_i <- unlist(lapply(strsplit(name_i, "[.]"), `[[`, 2))
+#function for removing key phrase matches
+filter_data <- function(input_df, keys) {
+  df <- input_df
+  phrase <- vector()
+  inv <- substr(keys, 0, 1) == "-"
+  for (i in 1:length(keys)) {
+    if (inv[i]) {
+      phrase[i] <- substr(keys[i], 2, nchar(keys[i]))
     } else {
-      type_i <- item$type
+      phrase[i] <- keys[i]
     }
-    types <- append(types, type_i)
-    url_i <- paste0("https://api.github.com/repos/", gitrepo, "/contents/", item$path)
-    url_i <- gsub(" ", "%20", url_i)
-    download_urls <- append(download_urls, url_i)
+    df <- df %>%
+      filter(path %in% df$path[grep(paste0("\\", phrase[i]), df$path, invert=inv[i], ignore.case=T)])
   }
-  
-  #table of files
-  df <- data.frame(name = names, path = paths, type = types, download_url = download_urls) 
-  #removing filter phrase matches
-  if(!is.null(filterPhrase)) {
-    for (i in filterPhrase) {
-      df <- df %>%
-        filter(path %in% df$path[grep(paste0("\\", i), df$path, invert=filterInvert, ignore.case=T)])
-    }
-  }
-  
+
   #output
   return(df)
 }
 
 #collection names
-mt_files <- pull_data(c("mapTiles", "www"), filterInvert = T)
+mt_files <- filter_data(ct, c("-mapTiles", "-www", "-mapFeatures", "-Descriptions", "Data/"))
 mt_files <- mt_files %>%
-  filter(type == "tree",
-         path %in% mt_files$path[grep("Data/", mt_files$path)],
-         path %in% mt_files$path[grep("mapFeatures|Descriptions", mt_files$path, invert = T)]) %>%
+  filter(type == "tree") %>%
   pull(path)
 mt_files <- gsub("Data/", "", mt_files)
 
@@ -115,21 +97,17 @@ mt_files <- gsub("Data/", "", mt_files)
 crosstab <- merge(data.frame("Labels" = c("0", unlist(lapply(strsplit(mt_names, "\\(|\\)"), `[[`, 2))), "Names" = c("", mt_names)),
                   data.frame("Labels" = unlist(lapply(strsplit(mt_files, "\\(|\\)"), `[[`, 2)), "File_ID" = mt_files), by = "Labels", all=T)
 
-#reading elements from description .txt files
-read_desc <- function(filename) {
+#reading elements from description .txt files and pulling images
+read_desc <- function(input_df, keys = NULL) {
   #reading description from file on github API
-  df <- pull_data(filename)
+  df <- filter_data(input_df, keys) %>%
+    filter(type != "tree")
   txts <- df %>%
     filter(type == "txt")
-  req <- GET(txts %>%
-               pull(download_url),
-             gtoken)
-  stop_for_status(req)
-  
-  txt <- trimws(readLines(content(req)$download_url))
+  txt <- trimws(readLines(txts$download_url))
   txt <- txt[txt!=""]
   txt <- txt[txt!="\t"]
-  rm(req)
+  #rm(req)
   
   #generating name
   if (sum(grepl("Monument:|Title:", txt, ignore.case = T)) != 0) {
@@ -172,17 +150,20 @@ read_desc <- function(filename) {
   body <- gsub("Caption: ", "", body)
   
   #reading images
-  imgs <- df$download_url[grep("Image", df$name, ignore.case = T)]
+  
+  img_out <- df %>%
+    filter(name %in% df$name[grep("Image", df$name, ignore.case = T)]) %>%
+    pull(download_url)
   
   #output
-  desc_out <- list("name" = name, "header" = header, "body_index" = body_index, "body" = body, "footer" = footer, "images" = imgs)
+  desc_out <- list("name" = name, "header" = header, "body_index" = body_index, "body" = body, "footer" = footer, "images" = img_out)
   return(desc_out)
 }
 
 #reading in all descriptions
 allDesc <- list()
 for (i in crosstab$File_ID) {
-  allDesc <- append(allDesc, list(read_desc(i)))
+  allDesc <- append(allDesc, list(read_desc(ct, c(i, "-www", "-captionImages"))))
 }
 names(allDesc) <- crosstab$File_ID
 
@@ -200,6 +181,7 @@ pn <- st_drop_geometry(mt_actual) %>% dplyr::select(Phase, Phase_Name) %>%
   arrange(Phase) %>%
   pull(Phase_Name)
 
+#USER INTERFACE CODE
 
 ui <- fluidPage(
   tags$head(tags$script('
@@ -244,6 +226,8 @@ ui <- fluidPage(
   )
 )
 
+#WEBSITE SERVER CODE
+
 server <- function(input, output, session) {
   #saving screen width value
   v <- reactiveValues(width = NULL) 
@@ -252,11 +236,11 @@ server <- function(input, output, session) {
   output$map <- renderLeaflet({
     leaflet() %>%
       addTiles(urlTemplate = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/AES_ActualStatePlan_3857/{z}/{x}/{y}.png",
-               attribution = '<a href="https://www.samothrace.emory.edu/">American Excavations Samothrace',
+               attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace',
                options = tileOptions(minZoom = 16, maxZoom = 21, tms = TRUE),
                group = "Actual Plan") %>%
       addTiles(urlTemplate = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/AES_RestoredStatePlan_3857/{z}/{x}/{y}.png",
-               attribution = '<a href="https://www.samothrace.emory.edu/">American Excavations Samothrace',
+               attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace',
                options = tileOptions(minZoom = 16, maxZoom = 21, tms = TRUE), 
                group = "Restored Plan") %>%
       #monument shapes for the actual state plan
