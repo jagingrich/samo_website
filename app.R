@@ -2,35 +2,14 @@ library(shiny)
 library(jsonlite)
 library(httpuv)
 library(httr)
+library(RCurl)
 library(leaflet)
 library(tidyverse)
 library(sf)
 library(shinyjs)
 
-# Get OAuth credentials
-gtoken <- readRDS("./Data/github_token.rds")
 #github repository
 gitrepo <- "jagingrich/samo_website"
-
-#Use API to read all files in github repository to table
-req <- GET(paste0("https://api.github.com/repos/", gitrepo, "/git/trees/main?recursive=1"), gtoken)
-stop_for_status(req)
-ct = content(req)
-ct <- ct$tree
-for (i in 1:length(ct)) {
-  ct[[i]]$size <- NULL
-  ct[[i]]$sha <- NULL
-  ct[[i]]$mode <- NULL
-  name_i <- unlist(strsplit(ct[[i]]$path, "/"))
-  name_i <- name_i[length(name_i)]
-  ct[[i]]$name <- name_i
-  if (ct[[i]]$type == "blob") {
-    ct[[i]]$type <- unlist(lapply(strsplit(name_i, "[.]"), `[[`, 2))
-  }
-  ct[[i]]$download_url <- gsub(" ", "%20", paste0("https://raw.githubusercontent.com/", gitrepo, "/main/", ct[[i]]$path))
-}
-ct <- do.call(rbind, lapply(ct, data.frame))
-rm(req)
 
 #reading monuments .gpkg file
 gpkg_path <- paste0("https://raw.githubusercontent.com/", gitrepo, "/main/Data/mapFeatures/AES_Monuments_20230207.gpkg")
@@ -67,47 +46,28 @@ mt_names <- unique(mt_names %>%
                      arrange(as.numeric(num)) %>%
                      pull(Name))
 
-#function for removing key phrase matches
-filter_data <- function(input_df, keys) {
-  df <- input_df
-  phrase <- vector()
-  inv <- substr(keys, 0, 1) == "-"
-  for (i in 1:length(keys)) {
-    if (inv[i]) {
-      phrase[i] <- substr(keys[i], 2, nchar(keys[i]))
-    } else {
-      phrase[i] <- keys[i]
-    }
-    df <- df %>%
-      filter(path %in% df$path[grep(paste0("\\", phrase[i]), df$path, invert=inv[i], ignore.case=T)])
-  }
-
-  #output
-  return(df)
-}
-
 #collection names
-mt_files <- filter_data(ct, c("-mapTiles", "-www", "-mapFeatures", "-Descriptions", "Data/"))
-mt_files <- mt_files %>%
-  filter(type == "tree") %>%
-  pull(path)
-mt_files <- gsub("Data/", "", mt_files)
+mt_files <- data.frame(
+  "name" = c("(0)Introduction", "(1-3)UnidentifiedLateHellenisticBuildings", "(11a)Stoa", "(11b)MonumentsStoaTerrace", "(12)Nike", "(13)Theater", "(14)AltarCourt", "(15)Hieron", 
+              "(16)HallofVotiveGifts", "(17)HallofChoralDancers", "(18)SacredWay", "(20)RotundaofArsinoeII", "(22)Sacristy", "(23)Anaktoron", "(24)DedicationofPhilipandAlexander", 
+              "(25)TheatralCircle", "(26)PropylonofPtolemyII", "(28)DoricRotunda", "(29)Neorion", "(30)MonumentPlatformsSteppedRetainingWall", "(31)IonicPorch", "(4)BuildingA", 
+              "(5)ByzantineFortification", "(6)Milesian", "(7)DiningRooms", "(8-10)NicheCultRooms"))
+mt_files$Labels <- unlist(lapply(strsplit(mt_files$name, "\\(|\\)"), `[[`, 2))
+mt_files$path <- paste0("Data/mapDescriptions/", mt_files$name)
+mt_files$download_url <- paste0("https://raw.githubusercontent.com/", gitrepo, "/main/", mt_files$path)
 
 #file - monument linking table
-crosstab <- merge(data.frame("Labels" = c("0", unlist(lapply(strsplit(mt_names, "\\(|\\)"), `[[`, 2))), "Names" = c("", mt_names)),
-                  data.frame("Labels" = unlist(lapply(strsplit(mt_files, "\\(|\\)"), `[[`, 2)), "File_ID" = mt_files), by = "Labels", all=T)
+crosstab <- merge(data.frame("Labels" = c("0", unlist(lapply(strsplit(mt_names, "\\(|\\)"), `[[`, 2))), "Monument" = c("", mt_names)),
+                  mt_files, by = "Labels", all=T)
 
 #reading elements from description .txt files and pulling images
-read_desc <- function(input_df, keys = NULL) {
-  #reading description from file on github API
-  df <- filter_data(input_df, keys) %>%
-    filter(type != "tree")
-  txts <- df %>%
-    filter(type == "txt")
-  txt <- trimws(readLines(txts$download_url))
+read_desc <- function(keys = NULL) {
+  sub <- crosstab %>%
+    filter(name == keys)
+  download_url <- paste0(sub$download_url, "/SamoWebsite_", sub$name)
+  txt <- trimws(readLines(paste0(download_url, ".txt")))
   txt <- txt[txt!=""]
   txt <- txt[txt!="\t"]
-  #rm(req)
   
   #generating name
   if (sum(grepl("Monument:|Title:", txt, ignore.case = T)) != 0) {
@@ -150,10 +110,17 @@ read_desc <- function(input_df, keys = NULL) {
   body <- gsub("Caption: ", "", body)
   
   #reading images
-  
-  img_out <- df %>%
-    filter(name %in% df$name[grep("Image", df$name, ignore.case = T)]) %>%
-    pull(download_url)
+  img_out <- vector()
+  if (sum(body_index == "caption") != 0) {
+    img_name <- paste0(download_url, "_Image", 1:sum(body_index == "caption"))
+    for (i in img_name) {
+      if (url.exists(paste0(i, ".png"))) {
+        img_out <- append(img_out, paste0(i, ".png"))
+      } else {
+        img_out <- append(img_out, paste0(i, ".jpg"))
+      }
+    }
+  }
   
   #output
   desc_out <- list("name" = name, "header" = header, "body_index" = body_index, "body" = body, "footer" = footer, "images" = img_out)
@@ -162,10 +129,10 @@ read_desc <- function(input_df, keys = NULL) {
 
 #reading in all descriptions
 allDesc <- list()
-for (i in crosstab$File_ID) {
-  allDesc <- append(allDesc, list(read_desc(ct, c(i, "-www", "-captionImages"))))
+for (i in crosstab$name) {
+  allDesc <- append(allDesc, list(read_desc(i)))
 }
-names(allDesc) <- crosstab$File_ID
+names(allDesc) <- crosstab$name
 
 #Color palette for phases
 pal <- c("1" = "#94d1e7",
@@ -311,8 +278,8 @@ server <- function(input, output, session) {
     
     #subsetting descriptions on click
     desc <- allDesc[[crosstab %>%
-                       filter(Names == input$features) %>%
-                       pull(File_ID)]]
+                       filter(Monument == input$features) %>%
+                       pull(name)]]
     
     if(is.na(desc$name)) {
       hide("title")
@@ -335,11 +302,14 @@ server <- function(input, output, session) {
     output$body <- renderUI({
       tag_list <- function(number) {
         if (desc$body_index[number] == "body") {
+          #body paragraph
           out <- tagList(tags$text(HTML(paste0(desc$body[number], "</br></br>")), 
                                    style = "font-size:16px;"))
         } else {
+          #caption
           caps <- desc$body[desc$body_index == "caption"] 
           cap_index <- (1:length(caps))[caps == desc$body[number]]
+          #image
           out <- tagList(
             tags$img(src = desc$images[cap_index],
                      width = v$width),
