@@ -202,14 +202,7 @@ server <- function(input, output, session) {
           #reading images
           img_out <- vector()
           if (sum(body_index == "caption") != 0) {
-            img_name <- paste0(download_url, "_Image", 1:sum(body_index == "caption"))
-            for (i in img_name) {
-              if (url.exists(paste0(i, ".png"))) {
-                img_out <- append(img_out, paste0(i, ".png"))
-              } else {
-                img_out <- append(img_out, paste0(i, ".jpg"))
-              }
-            }
+            img_out <- paste0(download_url, "_Image", 1:sum(body_index == "caption"), ".jpg")
           }
           
           #output
