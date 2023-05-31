@@ -127,15 +127,10 @@ server <- function(input, output, session) {
           mt_names <- data.frame("Labels" = c("0", mt_labels), "Monument" = c("", mt_names))
           mt_names$order <- c(1:nrow(mt_names))
           
-          mt_files <- data.frame(
-            "name" = c("(0)Introduction", "(1-3)UnidentifiedLateHellenisticBuildings", "(4)BuildingA", "(5)ByzantineFortification", "(6)Milesian", "(7)DiningRooms", "(8-10)NicheCultRooms", 
-                       "(11a)Stoa", "(11b)MonumentsStoaTerrace", "(12)Nike", "(13)Theater", "(14)AltarCourt", "(15)Hieron", "(16)HallofVotiveGifts", "(17)HallofChoralDancers", "(18)SacredWay", 
-                       "(20)RotundaofArsinoeII", "(22)Sacristy", "(23)Anaktoron", "(24)DedicationofPhilipandAlexander", "(25)TheatralCircle", "(26)PropylonofPtolemyII", "(28)DoricRotunda", 
-                       "(29)Neorion", "(30)MonumentPlatformsSteppedRetainingWall", "(31)IonicPorch"
-            ))
-          mt_files$Labels <- unlist(lapply(strsplit(mt_files$name, "\\(|\\)"), `[[`, 2))
-          mt_files$path <- paste0("Data/mapDescriptions/", mt_files$name)
-          mt_files$download_url <- paste0("https://raw.githubusercontent.com/", gitrepo, "/main/", mt_files$path)
+          mt_files <- read.csv(paste0("https://raw.githubusercontent.com/", gitrepo, "/main/Data/mapDescriptions/SamoWebsite_mapDescriptions_Index.csv"))
+          mt_files <- mt_files %>%
+            mutate(path = paste0("Data/mapDescriptions/", name)) %>%
+            mutate(download_url = paste0("https://raw.githubusercontent.com/", gitrepo, "/main/", path))
           
           #file - monument linking table
           out <- merge(mt_names, mt_files, by = "Labels", all=T) %>%
