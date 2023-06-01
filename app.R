@@ -47,10 +47,10 @@ ui <- fluidPage(
     column (5,
             style = "height: 100vh; overflow-y: auto;",
             div(id = "top", " "),
-            span(htmlOutput("title"), style = "font-size:30px;" ),
-            span(htmlOutput("header"), style = "font-size:14px;" ),
+            #span(htmlOutput("title"), style = "font-size:30px;" ),
+            #span(htmlOutput("header")), #, style = "font-size:14px;" ),
             span(htmlOutput("body", width = "auto", height = "auto")),
-            span(htmlOutput("footer"), style = "font-size:14px;" ),
+            #span(htmlOutput("footer"), style = "font-size:14px;" ),
             span(htmlOutput("date"), style = "font-size:10px;" )
     )
   )
@@ -81,9 +81,9 @@ server <- function(input, output, session) {
     if (v$state == 0) {
       
       #reading in all descriptions
-      allDesc <- list()
       withProgress(message = "Loading: ", value = 0, {
-        n <- 30
+        n <- nrow(read.csv(paste0("https://raw.githubusercontent.com/", v$gitrepo, "/main/Data/mapDescriptions/SamoWebsite_mapDescriptions_Index.csv")))
+        n <- n + 4
         
         #reading monuments .gpkg file
         load_layer <- function(path, lyrs, key, abbrev) {
@@ -139,84 +139,103 @@ server <- function(input, output, session) {
         }
         
         #table of names
-        crosstab <- clean_names(v$gitrepo, actual, restored)
-        v$names <- crosstab %>%
-          filter(name != "(0)Introduction") %>%
+        v$crosstab <- clean_names(v$gitrepo, actual, restored)
+        v$names <- v$crosstab %>%
+          filter(Monument != "") %>%
           pull(Monument)
-        v$crosstab <- crosstab
         
         #reading elements from description .txt files and pulling images
-        read_desc <- function(crosstab, keys = NULL) {
+        read_desc <- function(crosstab, key = NULL) {
           sub <- crosstab %>%
-            filter(name == keys)
+            filter(name == key)
           download_url <- paste0(sub$download_url, "/SamoWebsite_", sub$name)
-          txt <- trimws(readLines(paste0(download_url, ".txt")))
-          txt <- txt[txt!=""]
-          txt <- txt[txt!="\t"]
-          
-          #generating name
-          if (sum(grepl("Monument:|Title:", txt, ignore.case = T)) != 0) {
-            name_index <- grep("Monument:|Title:", txt, ignore.case = T)
-            name <- txt[grep("Monument:|Title:", txt, ignore.case = T)]
-            name <- gsub("Monument: |Title: ", "", name)
+          if (url.exists(paste0(download_url, ".txt"))) {
+            txt <- trimws(readLines(paste0(download_url, ".txt")))
+            txt <- txt[grep("Document updated:|JAG_UNEDITED", txt, invert = T, ignore.case = T)]
+            
+            #removing duplicate line breaks
+            txt_index <- ifelse(txt == "", "break", "text")
+            txt_index2 <- vector()
+            for (i in 1:length(txt)) {
+              if (txt_index[i] == "break" && (length(txt[i-1]) == 0 || txt_index[i-1] == "break")) {
+                txt_index2[i] <- "DUPLICATE"
+              } else {
+                txt_index2[i] <- txt_index[i]
+              }
+            }
+            txt <- txt[txt_index2 != "DUPLICATE"]
+            txt_index <- txt_index[txt_index2 != "DUPLICATE"]
+            #txt <- txt[txt!=""]
+            
+            #name
+            txt_index[grep("Monument:|Title:", txt, ignore.case = T)] <- "name"
+            txt[txt_index == "name"] <- gsub("Monument: |Title: ", "", txt[txt_index == "name"], ignore.case = T)
+            txt[txt_index == "name"] <- paste0("<b>", txt[txt_index == "name"], "</b>")
+            
+            #subheader
+            txt_index[grep("Subheader:|Part:", txt, ignore.case = T)] <- "subheader"
+            txt[txt_index == "subheader"] <- gsub("Subheader: |Part: ", "", txt[txt_index == "subheader"], ignore.case = T)
+            txt[txt_index == "subheader"] <- paste0("<b>", txt[txt_index == "subheader"], "</b>")
+            
+            #header
+            txt_index[grep("Header:", txt, ignore.case = T)] <- "header"
+            txt[txt_index == "header"] <- gsub("Header: ", "", txt[txt_index == "header"], ignore.case = T)
+            txt[txt_index == "header"] <- paste0("<b>", txt[txt_index == "header"], "</b>")
+            
+            #subtext
+            txt_index[grep("Date:|Material:|Location:", txt, ignore.case = T)] <- "subtext"
+            txt[txt_index == "subtext"] <- gsub("Date: |Material: |Location: ", "", txt[txt_index == "subtext"], ignore.case = T)
+            
+            #caption
+            txt_index[grep("Caption:", txt, ignore.case = T)] <- "caption"
+            txt[txt_index == "caption"] <- gsub("Caption: ", "", txt[txt_index == "caption"], ignore.case = T)
+            
+            #bibliography
+            txt_index[grep("Bibliography", txt, ignore.case = T)] <- "bibhead"
+            txt[txt_index == "bibhead"] <- "<b>Selected Bibliography</b>"
+            if (sum(grepl("Bibliography", txt, ignore.case = T)) != 0) {
+              txt_index[(grep("Bibliography", txt, ignore.case = T) + 1):length(txt)] <- "bibliography"
+            }
+            
+            #body
+            txt_index[txt_index == "text"] <- "body"
+            
+            #reading images
+            img_out <- vector()
+            if (sum(txt_index == "caption") != 0) {
+              img_out <- paste0(download_url, "_Image", 1:sum(txt_index == "caption"), ".jpg")
+            }
+            
+            #output
+            desc_out <- list("body" = txt, "body_index" = txt_index, "images" = img_out)
+          } else {
+            name <- crosstab %>%
+              filter(name == i) %>%
+              pull(Monument)
             name <- paste0("<b>", name, "</b>")
-          } else {
-            name_index <- 0
-            name <- NA
+            #output
+            desc_out <- list("body" = name, "body_index" = "name", "images" = NA)
           }
-          
-          #generating header
-          if (sum(grepl("Part:|Date:|Material:|Location:", txt, ignore.case = T)) != 0) {
-            header_index <- grep("Part:|Date:|Material:|Location:", txt, ignore.case = T)
-            header <- txt[grep("Part:|Date:|Material:|Location:", txt)]
-            header <- ifelse(grepl("Part:", header), paste0("<b>", header, "</b>"), header)
-            header <- gsub("Part: ", "</br>", header)
-            header <- gsub("Date: |Material: |Location: ", "", header)
-            header <- paste(c(header), sep='</br>', collapse ='</br>')
-          } else {
-            header_index <- name_index
-            header <- NA
-          }
-          
-          #generating bibliography
-          if (sum(grepl("bibliography", txt, ignore.case = T)) != 0) {
-            footer_index <- grep("bibliography", txt, ignore.case = T):length(txt)
-            footer <- txt[(min(footer_index) + 1):length(txt)]
-            footer <- footer[grep("Document updated:|JAG_UNEDITED", footer, invert = T, ignore.case = T)]
-            footer <- paste(c("<b>Selected Bibliography</b>", footer), sep='</br>', collapse ='</br>')
-          } else {
-            footer_index <- length(txt) + 1
-            footer <- NA
-          }
-          
-          #generating body
-          body <- txt[-c(name_index, header_index, footer_index)]
-          body_index <- ifelse(grepl("caption:", body, ignore.case = T), "caption", "body")
-          body <- gsub("Caption: ", "", body)
-          
-          #reading images
-          img_out <- vector()
-          if (sum(body_index == "caption") != 0) {
-            img_out <- paste0(download_url, "_Image", 1:sum(body_index == "caption"), ".jpg")
-          }
-          
-          #output
-          desc_out <- list("name" = name, "header" = header, "body_index" = body_index, "body" = body, "footer" = footer, "images" = img_out)
           return(desc_out)
         }
         
         #loading monument descriptions
-        for (i in crosstab$name) {
-          mt <- crosstab %>%
+        allDesc <- list()
+        for (i in v$crosstab$name) {
+          mt <- v$crosstab %>%
             filter(name == i) %>%
             pull(Monument)
           mt[mt == ""] <- "(0) Introduction"
-          incProgress(1/n, detail = mt)
-          allDesc <- append(allDesc, list(read_desc(crosstab, i)))
+          if (length(mt) != 0) {
+            incProgress(1/n, detail = mt)
+            allDesc <- append(allDesc, list(read_desc(v$crosstab, i)))
+          } 
         }
         
         incProgress(1/n, detail = "All Features Loaded")
-        names(allDesc) <- crosstab$name
+        names(allDesc) <- v$crosstab %>%
+          filter(!is.na(name)) %>%
+          pull(name)
         v$desc <- allDesc
         
         #Color palette for phases
@@ -225,9 +244,10 @@ server <- function(input, output, session) {
                  "3" = "#00a33c",
                  "4" = "#ff871f",
                  "5" = "#ff171F",
-                 "6" = "#fdf500")
+                 "6" = "#fdf500",
+                 "7" = "#00000000")
         pal <- pal[sort(unique(v$actual$Phase))]
-        factPal <- colorFactor(pal, v$actual$Phase)
+        factPal <- colorFactor(pal, v$actual$Phase, alpha = T)
         pn <- st_drop_geometry(v$actual) %>% dplyr::select(Phase, Phase_Name) %>%
           distinct() %>%
           arrange(Phase) %>%
@@ -235,7 +255,7 @@ server <- function(input, output, session) {
         v$pal <- pal
         v$factPal <- factPal
         v$pn <- pn
-      
+        
         incProgress(1/n, detail = "All Features Loaded")
       })
       
@@ -248,49 +268,49 @@ server <- function(input, output, session) {
   #creating map
   output$map <- renderLeaflet({
     if (v$state == 1) {
-    leaflet() %>%
-      addTiles(urlTemplate = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/AES_ActualStatePlan_3857/{z}/{x}/{y}.png",
-               attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace',
-               options = tileOptions(minZoom = 16, maxZoom = 21, tms = TRUE),
-               group = "Actual Plan") %>%
-      addTiles(urlTemplate = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/AES_RestoredStatePlan_3857/{z}/{x}/{y}.png",
-               attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace',
-               options = tileOptions(minZoom = 16, maxZoom = 21, tms = TRUE), 
-               group = "Restored Plan") %>%
-      #monument shapes for the actual state plan
-      addPolygons(data = v$actual %>% filter(!Name %in% v$names), 
-                  color = ~v$factPal(Phase), weight = 1, opacity = 1, 
-                  fillOpacity = 0.8, fillColor = ~v$factPal(Phase), 
-                  layerId = v$actual %>% filter(!Name %in% v$names) %>% pull(ID), 
-                  group = "Actual Plan") %>%
-      addPolygons(data = v$actual %>% filter(Name %in% v$names), 
-                  color = ~v$factPal(Phase), weight = 1, opacity = 0.75, 
-                  fillOpacity = 0.75, fillColor = ~v$factPal(Phase), 
-                  highlightOptions = highlightOptions(color = ~v$factPal(Phase), opacity = 0.95, weight=2, 
-                                                      fillOpacity = 0.95, bringToFront = T), 
-                  layerId = v$actual %>% filter(Name %in% v$names) %>% pull(ID), 
-                  group = "Actual Plan") %>%
-      #monument shapes for the restored state plan
-      addPolygons(data = v$restored %>% filter(!Name %in% v$names), 
-                  color = ~v$factPal(Phase), weight = 1, opacity = 1, 
-                  fillOpacity = 0.8, fillColor = ~v$factPal(Phase), 
-                  layerId = v$restored %>% filter(!Name %in% v$names) %>% pull(ID), 
-                  group = "Restored Plan") %>%
-      addPolygons(data = v$restored %>% filter(Name %in% v$names), 
-                  color = ~v$factPal(Phase), weight = 1, opacity = 0.75, 
-                  fillOpacity = 0.75, fillColor = ~v$factPal(Phase), 
-                  highlightOptions = highlightOptions(color = ~v$factPal(Phase), opacity = 0.95, weight=2, 
-                                                      fillOpacity = 0.95, bringToFront = T), 
-                  layerId = v$restored %>% filter(Name %in% v$names) %>% pull(ID), 
-                  group = "Restored Plan") %>%
-      addLegend("bottomleft", colors = v$pal, 
-                labels = v$pn, 
-                opacity = 1) %>%
-      addLayersControl(
-        baseGroups = c("Actual Plan", "Restored Plan"),
-        options = layersControlOptions(collapsed = FALSE)) %>%
-      addControl(actionButton("reset", "All Monuments", style = "font-size:10px;"), 
-                 position="topright", className = "leaflet-control-layers-selector")
+      leaflet() %>%
+        addTiles(urlTemplate = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStatePlan_3857/{z}/{x}/{y}.png",
+                 attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace',
+                 options = tileOptions(minZoom = 17, maxZoom = 22, tms = TRUE),
+                 group = "Actual Plan") %>%
+        addTiles(urlTemplate = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png",
+                 attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace',
+                 options = tileOptions(minZoom = 17, maxZoom = 22, tms = TRUE), 
+                 group = "Restored Plan") %>%
+        #monument shapes for the actual state plan
+        addPolygons(data = v$actual %>% filter(!Name %in% v$names), 
+                    color = ~v$factPal(Phase), weight = 1, opacity = 1, 
+                    fillOpacity = 0.8, fillColor = ~v$factPal(Phase), 
+                    layerId = v$actual %>% filter(!Name %in% v$names) %>% pull(ID), 
+                    group = "Actual Plan") %>%
+        addPolygons(data = v$actual %>% filter(Name %in% v$names), 
+                    color = ~v$factPal(Phase), weight = 1, opacity = 0.75, 
+                    fillOpacity = 0.75, fillColor = ~v$factPal(Phase), 
+                    highlightOptions = highlightOptions(color = ~v$factPal(Phase), opacity = 0.95, weight=2, 
+                                                        fillOpacity = 0.95, bringToFront = T), 
+                    layerId = v$actual %>% filter(Name %in% v$names) %>% pull(ID), 
+                    group = "Actual Plan") %>%
+        #monument shapes for the restored state plan
+        addPolygons(data = v$restored %>% filter(!Name %in% v$names), 
+                    color = ~v$factPal(Phase), weight = 1, opacity = 1, 
+                    fillOpacity = 0.8, fillColor = ~v$factPal(Phase), 
+                    layerId = v$restored %>% filter(!Name %in% v$names) %>% pull(ID), 
+                    group = "Restored Plan") %>%
+        addPolygons(data = v$restored %>% filter(Name %in% v$names), 
+                    color = ~v$factPal(Phase), weight = 1, opacity = 0.75, 
+                    fillOpacity = 0.75, fillColor = ~v$factPal(Phase), 
+                    highlightOptions = highlightOptions(color = ~v$factPal(Phase), opacity = 0.95, weight=2, 
+                                                        fillOpacity = 0.95, bringToFront = T), 
+                    layerId = v$restored %>% filter(Name %in% v$names) %>% pull(ID), 
+                    group = "Restored Plan") %>%
+        addLegend("bottomleft", colors = v$pal, 
+                  labels = v$pn, 
+                  opacity = 1) %>%
+        addLayersControl(
+          baseGroups = c("Actual Plan", "Restored Plan"),
+          options = layersControlOptions(collapsed = FALSE)) %>%
+        addControl(actionButton("reset", "All Monuments", style = "font-size:10px;"), 
+                   position="topright", className = "leaflet-control-layers-selector")
     }
   })
   
@@ -310,79 +330,77 @@ server <- function(input, output, session) {
   
   observeEvent(input$features, { #monitor which feature is selected based on selectInput
     if (v$state == 1) {
-    #zooming the map
-    proxy <- leafletProxy("map")
-    
-    if(input$features == "") { #no selection
-      #zoom to all features
-      fitBounds(proxy, 25.52876, 40.49953, 25.53177, 40.50177)
+      #zooming the map
+      proxy <- leafletProxy("map")
       
-    } else { #specific feature selected
-      selectA <- v$actual %>% filter(Name == input$features)
-      selectR <- v$restored %>% filter(Name == input$features)
+      if(input$features == "") { #no selection
+        #zoom to all features
+        fitBounds(proxy, 25.52876, 40.49953, 25.53177, 40.50177)
+        
+      } else { #specific feature selected
+        selectA <- v$actual %>% filter(Name == input$features)
+        selectR <- v$restored %>% filter(Name == input$features)
+        
+        #zoom to selected feature
+        focus <- st_bbox(rbind(selectA, selectR)) %>% as.vector()
+        fitBounds(proxy, focus[1], focus[2], focus[3], focus[4])
+      }
       
-      #zoom to selected feature
-      focus <- st_bbox(rbind(selectA, selectR)) %>% as.vector()
-      fitBounds(proxy, focus[1], focus[2], focus[3], focus[4])
-    }
-    
-    #subsetting descriptions on click
-    desc <- v$desc[[v$crosstab %>%
-                       filter(Monument == input$features) %>%
-                       pull(name)]]
-    
-    if(is.na(desc$name)) {
-      hide("title")
-    } else {
-      output$title <- renderUI({
-        HTML(paste0(desc$name, "</br>"))
-      })
-      show("title")
-    }
-    
-    if(is.na(desc$header)) {
-      hide("header")
-    } else {
-      output$header <- renderUI({
-        HTML(paste0(desc$header, "</br>---</br>"))
-      })
-      show("header")
-    }
-    
-    output$body <- renderUI({
-      tag_list <- function(number) {
-        if (desc$body_index[number] == "body") {
-          #body paragraph
-          out <- tagList(tags$text(HTML(paste0(desc$body[number], "</br></br>")), 
-                                   style = "font-size:16px;"))
-        } else {
-          #caption
-          caps <- desc$body[desc$body_index == "caption"] 
-          cap_index <- (1:length(caps))[caps == desc$body[number]]
-          #image
-          out <- tagList(
-            tags$img(src = desc$images[cap_index],
-                     width = v$width),
-            tags$text(HTML(paste0("</br>", desc$body[number], "</br></br>")), 
-                      style = "font-size:14px;"))
-        }
-        return(out)
+      #subsetting descriptions on click
+      desc <- v$desc[[v$crosstab %>%
+                        filter(Monument == input$features) %>%
+                        pull(name)]]
+      
+      check <- TRUE
+      if (is.null(desc)) {
+        check <- FALSE
+        desc <- list("body_index" = NA, "body" = NA, "images" = NA)
       }
-      tl <- tagList()
-      for (i in 1:length(desc$body)){
-        tl <- append(tl, tag_list(i))
+      
+      if (!check | sum(is.na(desc$body)) == length(desc$body)) {
+        output$body <- NULL
+      } else {
+        output$body <- renderUI({
+          tag_list <- function(number) {
+            if (desc$body_index[number] == "name") {
+              #monument name/title
+              out <- tagList(tags$text(HTML(paste0(desc$body[number], "</br>")), 
+                                       style = "font-size:30px;"))
+            } else if (desc$body_index[number] == "header") {
+              #header
+              out <- tagList(tags$text(HTML(paste0(desc$body[number], "</br>")), 
+                                       style = "font-size:24px;"))
+            } else if (desc$body_index[number] %in% c("subheader", "bibhead", "body")) {
+              #subheader, bibliography, body
+              out <- tagList(tags$text(HTML(paste0(desc$body[number], "</br>")), 
+                                       style = "font-size:16px;"))
+            } else if (desc$body_index[number] %in% c("subtext", "bibliography")) {
+              #date, location, material
+              out <- tagList(tags$text(HTML(paste0(desc$body[number], "</br>")), 
+                                       style = "font-size:14px;"))
+            } else if (desc$body_index[number] == "caption") {
+              #caption
+              caps <- desc$body[desc$body_index == "caption"] 
+              cap_index <- (1:length(caps))[caps == desc$body[number]]
+              #image
+              out <- tagList(
+                tags$img(src = desc$images[cap_index],
+                         width = v$width),
+                tags$text(HTML(paste0("</br>", desc$body[number], "</br>")), 
+                          style = "font-size:14px;"))
+            } else if (desc$body_index[number] == "break") {
+              out <- tagList(tags$text(HTML("</br>"), 
+                                       style = "font-size:14px;"))
+            }
+            return(out)
+          }
+          tl <- tagList()
+          for (i in 1:length(desc$body)){
+            tl <- append(tl, tag_list(i))
+          }
+          tagList(tl)
+        })
       }
-      tagList(tl)
-    })
-    
-    if(is.na(desc$footer)) {
-      hide("footer")
-    } else {
-      output$footer <- renderUI({
-        HTML(paste0("</br>---</br>", desc$footer, "</br></br>"))
-      })
-      show("footer")
-    }
     }
   })
   
@@ -405,6 +423,7 @@ server <- function(input, output, session) {
                         filter(ID %in% feat$id) %>%
                         pull(Name))
     }
+    
     if(click %in% v$names) {
       updateSelectInput(session, "features", selected=click)
     }
