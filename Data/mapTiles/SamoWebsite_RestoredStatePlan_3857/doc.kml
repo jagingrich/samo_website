@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>Restored State Plan</name>
+    <name>SamoWebsite_RestoredStatePlan_3857</name>
     <description></description>
     <Style>
       <ListStyle id="hideChildren">
@@ -9,12 +9,12 @@
       </ListStyle>
     </Style>
     <NetworkLink>
-      <name>16/37415/40844.png</name>
+      <name>17/74830/81689.png</name>
       <Region>
         <LatLonAltBox>
           <north>40.50126945841645</north>
-          <south>40.49709237269567</south>
-          <east>25.53222656250000</east>
+          <south>40.49918094806632</south>
+          <east>25.52947998046875</east>
           <west>25.52673339843751</west>
         </LatLonAltBox>
         <Lod>
@@ -23,19 +23,19 @@
         </Lod>
       </Region>
       <Link>
-        <href>16/37415/40844.kml</href>
+        <href>17/74830/81689.kml</href>
         <viewRefreshMode>onRegion</viewRefreshMode>
         <viewFormat/>
       </Link>
     </NetworkLink>
         
     <NetworkLink>
-      <name>16/37415/40845.png</name>
+      <name>17/74830/81690.png</name>
       <Region>
         <LatLonAltBox>
-          <north>40.50544628405211</north>
+          <north>40.50335790374529</north>
           <south>40.50126945841645</south>
-          <east>25.53222656250000</east>
+          <east>25.52947998046875</east>
           <west>25.52673339843751</west>
         </LatLonAltBox>
         <Lod>
@@ -44,7 +44,49 @@
         </Lod>
       </Region>
       <Link>
-        <href>16/37415/40845.kml</href>
+        <href>17/74830/81690.kml</href>
+        <viewRefreshMode>onRegion</viewRefreshMode>
+        <viewFormat/>
+      </Link>
+    </NetworkLink>
+        
+    <NetworkLink>
+      <name>17/74831/81689.png</name>
+      <Region>
+        <LatLonAltBox>
+          <north>40.50126945841645</north>
+          <south>40.49918094806632</south>
+          <east>25.53222656250000</east>
+          <west>25.52947998046875</west>
+        </LatLonAltBox>
+        <Lod>
+          <minLodPixels>128</minLodPixels>
+          <maxLodPixels>-1</maxLodPixels>
+        </Lod>
+      </Region>
+      <Link>
+        <href>17/74831/81689.kml</href>
+        <viewRefreshMode>onRegion</viewRefreshMode>
+        <viewFormat/>
+      </Link>
+    </NetworkLink>
+        
+    <NetworkLink>
+      <name>17/74831/81690.png</name>
+      <Region>
+        <LatLonAltBox>
+          <north>40.50335790374529</north>
+          <south>40.50126945841645</south>
+          <east>25.53222656250000</east>
+          <west>25.52947998046875</west>
+        </LatLonAltBox>
+        <Lod>
+          <minLodPixels>128</minLodPixels>
+          <maxLodPixels>-1</maxLodPixels>
+        </Lod>
+      </Region>
+      <Link>
+        <href>17/74831/81690.kml</href>
         <viewRefreshMode>onRegion</viewRefreshMode>
         <viewFormat/>
       </Link>
