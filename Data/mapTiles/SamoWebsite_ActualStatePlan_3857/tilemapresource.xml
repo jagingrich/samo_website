@@ -3,8 +3,8 @@
       <Title>SamoWebsite_ActualStatePlan_3857</Title>
       <Abstract></Abstract>
       <SRS>EPSG:3857</SRS>
-      <BoundingBox minx="25.52876535702912" miny="40.49954128701722" maxx="25.53176215788041" maxy="40.50175777438369"/>
-      <Origin x="25.52876535702912" y="40.49954128701722"/>
+      <BoundingBox minx="25.52876079137580" miny="40.49953103833785" maxx="25.53176027923085" maxy="40.50176007754364"/>
+      <Origin x="25.52876079137580" y="40.49953103833785"/>
       <TileFormat width="256" height="256" mime-type="image/png" extension="png"/>
       <TileSets profile="mercator">
         <TileSet href="17" units-per-pixel="1.19432856674194" order="17"/>
