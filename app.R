@@ -155,17 +155,21 @@ server <- function(input, output, session) {
             
             #removing duplicate line breaks
             txt_index <- ifelse(txt == "", "break", "text")
-            txt_index2 <- vector()
-            for (i in 1:length(txt)) {
-              if (txt_index[i] == "break" && (length(txt[i-1]) == 0 || txt_index[i-1] == "break")) {
-                txt_index2[i] <- "DUPLICATE"
-              } else {
-                txt_index2[i] <- txt_index[i]
+            txt_rm <- vector()
+            #index <- grep("break", txt_index)
+            for (i in 1:length(txt_index)) {
+              if (i < length(txt_index) && txt_index[i] == "break" && txt_index[i+1] == "break") {
+                txt_rm <- append(txt_rm, i)
+              } else if (i == 1 && txt_index[i] == "break") {
+                txt_rm <- append(txt_rm, i)
+              } else if (i == length(txt_index) && txt_index[i] == "break") {
+                txt_rm <- append(txt_rm, i)
               }
             }
-            txt <- txt[txt_index2 != "DUPLICATE"]
-            txt_index <- txt_index[txt_index2 != "DUPLICATE"]
-            #txt <- txt[txt!=""]
+            if (length(txt_rm) != 0) {
+              txt <- txt[-c(txt_rm)]
+              txt_index <- txt_index[-c(txt_rm)]
+            }
             
             #name
             txt_index[grep("Monument:|Title:", txt, ignore.case = T)] <- "name"
@@ -303,8 +307,8 @@ server <- function(input, output, session) {
                                                         fillOpacity = 0.95, bringToFront = T), 
                     layerId = v$restored %>% filter(Name %in% v$names) %>% pull(ID), 
                     group = "Restored Plan") %>%
-        addLegend("bottomleft", colors = v$pal, 
-                  labels = v$pn, 
+        addLegend("bottomleft", colors = v$pal[1:6], 
+                  labels = v$pn[1:6], 
                   opacity = 1) %>%
         addLayersControl(
           baseGroups = c("Actual Plan", "Restored Plan"),
