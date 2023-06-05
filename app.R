@@ -47,10 +47,7 @@ ui <- fluidPage(
     column (5,
             style = "height: 100vh; overflow-y: auto;",
             div(id = "top", " "),
-            #span(htmlOutput("title"), style = "font-size:30px;" ),
-            #span(htmlOutput("header")), #, style = "font-size:14px;" ),
             span(htmlOutput("body", width = "auto", height = "auto")),
-            #span(htmlOutput("footer"), style = "font-size:14px;" ),
             span(htmlOutput("date"), style = "font-size:10px;" )
     )
   )
@@ -86,8 +83,8 @@ server <- function(input, output, session) {
         n <- n + 4
         
         #reading monuments .gpkg file
-        load_layer <- function(path, lyrs, key, abbrev) {
-          layer <- read_sf(path, layer = lyrs$name[grep(key, lyrs$name)]) %>%
+        load_layer <- function(path, lyr, abbrev) {
+          layer <- read_sf(path, layer = lyr) %>%
             mutate(ID = paste0(ID, abbrev)) %>%
             st_transform('+proj=longlat +datum=WGS84') %>% 
             mutate(Name = paste0("(", Label, ") ", Name))
@@ -96,35 +93,36 @@ server <- function(input, output, session) {
         }
         
         #Loading GIS monument layers
-        gpkg_path <- paste0("https://raw.githubusercontent.com/", v$gitrepo, "/main/Data/mapFeatures/AES_Monuments_20230207.gpkg")
+        gpkg_path <- paste0("https://raw.githubusercontent.com/", v$gitrepo, "/main/Data/mapFeatures/SamoWebsite_Monuments.gpkg")
+        #checking layers
         incProgress(0, detail = "Map Layers")
-        layers <- st_layers(gpkg_path)
+        layer <- st_layers(gpkg_path)
+        #reading actual state plan
         incProgress(1/n, detail = "Actual State Plan")
-        actual <- load_layer(gpkg_path, layers, "Actual", "A")
+        v$actual <- load_layer(gpkg_path, layer$name[grep("Actual", layer$name)], "A")
+        #reading restored state plan
         incProgress(1/n, detail = "Restored State Plan")
-        restored <- load_layer(gpkg_path, layers, "Restored", "R")
-        v$actual <- actual
-        v$restored <- restored
+        v$restored <- load_layer(gpkg_path, layer$name[grep("Restored", layer$name)], "R")
         
         #cleaning and sorting monument names
         clean_names <- function(gitrepo, actual, restored) {
-          mt_names <- rbind(actual, restored) %>%
+          mt_names <- unique(rbind(restored, actual) %>%
             filter(!grepl("X", ID)) %>%
+            pull(Name))
+          mt_names <- data_frame("Monument" = mt_names,
+                                 "Labels" = unlist(lapply(strsplit(mt_names, "\\(|\\)"), `[[`, 2))) %>%
+            mutate(ID = Labels) %>%
             separate(ID, 
                      into = c("num", "text"), 
                      sep = "(?<=[0-9])(?=[A-Za-z])",
-                     fill = "right") 
-          mt_labels <- unique(mt_names %>%
-                                mutate(text = ifelse(is.na(mt_names$text), "a", text)) %>%
-                                arrange(text) %>%
-                                arrange(as.numeric(num)) %>%
-                                pull(Label))
-          mt_names <- unique(mt_names %>%
-                               mutate(text = ifelse(is.na(mt_names$text), "a", text)) %>%
-                               arrange(text) %>%
-                               arrange(as.numeric(num)) %>%
-                               pull(Name))
-          mt_names <- data.frame("Labels" = c("0", mt_labels), "Monument" = c("", mt_names))
+                     fill = "right")
+          mt_names$num <- as.numeric(unlist(lapply(strsplit(mt_names$num, "-"), `[[`, 1)))
+          mt_names <- mt_names %>%
+            mutate(text = ifelse(is.na(text), "a", text)) %>%
+            arrange(text) %>%
+            arrange(num) %>% 
+            dplyr::select(c(Labels, Monument))
+          mt_names <- rbind(data.frame("Labels" = "0", "Monument" = ""), mt_names)
           mt_names$order <- c(1:nrow(mt_names))
           
           mt_files <- read.csv(paste0("https://raw.githubusercontent.com/", gitrepo, "/main/Data/mapDescriptions/SamoWebsite_mapDescriptions_Index.csv"))
@@ -139,9 +137,10 @@ server <- function(input, output, session) {
         }
         
         #table of names
-        v$crosstab <- clean_names(v$gitrepo, actual, restored)
+        v$crosstab <- clean_names(v$gitrepo, v$actual, v$restored)
         v$names <- v$crosstab %>%
-          filter(Monument != "") %>%
+          filter(Monument != "",
+                 !is.na(name)) %>%
           pull(Monument)
         
         #reading elements from description .txt files and pulling images
@@ -156,7 +155,6 @@ server <- function(input, output, session) {
             #removing duplicate line breaks
             txt_index <- ifelse(txt == "", "break", "text")
             txt_rm <- vector()
-            #index <- grep("break", txt_index)
             for (i in 1:length(txt_index)) {
               if (i < length(txt_index) && txt_index[i] == "break" && txt_index[i+1] == "break") {
                 txt_rm <- append(txt_rm, i)
@@ -264,7 +262,7 @@ server <- function(input, output, session) {
       })
       
       #updating monument menu
-      updateSelectInput(session, "features", choices = v$crosstab$Monument, selected = "")
+      updateSelectInput(session, "features", choices = c("", v$names), selected = "")
       v$state <- 1
     }
   })
@@ -430,12 +428,19 @@ server <- function(input, output, session) {
     
     if(click %in% v$names) {
       updateSelectInput(session, "features", selected=click)
+      selectA <- v$actual %>% filter(Name == click)
+      selectR <- v$restored %>% filter(Name == click)
+      
+      #zoom to selected feature
+      focus <- st_bbox(rbind(selectA, selectR)) %>% as.vector()
+      fitBounds(leafletProxy("map"), focus[1], focus[2], focus[3], focus[4])
     }
   })
   
   #reset to all features on button click
   observeEvent(input$reset, { # reset selectInput
     updateSelectInput(session, "features", selected="")
+    fitBounds(leafletProxy("map"), 25.52876, 40.49953, 25.53177, 40.50177)
   })
 }
 
