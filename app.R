@@ -1,12 +1,12 @@
+#American Excavations Samothrace: interactive web map of the Sanctuary of the Great Gods
+#Jared Gingrich, May 2023
+
 library(shiny)
 library(RCurl)
 library(leaflet)
 library(tidyverse)
 library(sf)
 library(shinyjs)
-
-#github repository
-#gitrepo <- "jagingrich/samo_website"
 
 #USER INTERFACE CODE
 ui <- fluidPage(
@@ -109,7 +109,7 @@ server <- function(input, output, session) {
           mt_names <- unique(rbind(restored, actual) %>%
             filter(!grepl("X", ID)) %>%
             pull(Name))
-          mt_names <- data_frame("Monument" = mt_names,
+          mt_names <- data.frame("Monument" = mt_names,
                                  "Labels" = unlist(lapply(strsplit(mt_names, "\\(|\\)"), `[[`, 2))) %>%
             mutate(ID = Labels) %>%
             separate(ID, 
@@ -149,7 +149,7 @@ server <- function(input, output, session) {
             filter(name == key)
           download_url <- paste0(sub$download_url, "/SamoWebsite_", sub$name)
           if (url.exists(paste0(download_url, ".txt"))) {
-            txt <- trimws(readLines(paste0(download_url, ".txt")))
+            txt <- trimws(readLines(paste0(download_url, ".txt"), encoding = "UTF-8"))
             txt <- txt[grep("Document updated:|JAG_UNEDITED", txt, invert = T, ignore.case = T)]
             
             #removing duplicate line breaks
@@ -222,7 +222,7 @@ server <- function(input, output, session) {
         }
         
         #loading monument descriptions
-        allDesc <- list()
+        v$desc <- list()
         for (i in v$crosstab$name) {
           mt <- v$crosstab %>%
             filter(name == i) %>%
@@ -230,33 +230,28 @@ server <- function(input, output, session) {
           mt[mt == ""] <- "(0) Introduction"
           if (length(mt) != 0) {
             incProgress(1/n, detail = mt)
-            allDesc <- append(allDesc, list(read_desc(v$crosstab, i)))
+            v$desc <- append(v$desc, list(read_desc(v$crosstab, i)))
           } 
         }
-        
-        incProgress(1/n, detail = "All Features Loaded")
-        names(allDesc) <- v$crosstab %>%
+        names(v$desc) <- v$crosstab %>%
           filter(!is.na(name)) %>%
           pull(name)
-        v$desc <- allDesc
         
         #Color palette for phases
-        pal <- c("1" = "#94d1e7",
+        v$pal <- c("1" = "#94d1e7",
                  "2" = "#007abc",
                  "3" = "#00a33c",
                  "4" = "#ff871f",
                  "5" = "#ff171F",
                  "6" = "#fdf500",
                  "7" = "#00000000")
-        pal <- pal[sort(unique(v$actual$Phase))]
-        factPal <- colorFactor(pal, v$actual$Phase, alpha = T)
-        pn <- st_drop_geometry(v$actual) %>% dplyr::select(Phase, Phase_Name) %>%
+        v$pal <- v$pal[sort(unique(v$actual$Phase))]
+        v$factPal <- colorFactor(v$pal, v$actual$Phase, alpha = T)
+        v$pn <- rbind(st_drop_geometry(v$actual), st_drop_geometry(v$restored)) %>% 
+          dplyr::select(Phase, Phase_Name) %>%
           distinct() %>%
           arrange(Phase) %>%
           pull(Phase_Name)
-        v$pal <- pal
-        v$factPal <- factPal
-        v$pn <- pn
         
         incProgress(1/n, detail = "All Features Loaded")
       })
@@ -400,7 +395,8 @@ server <- function(input, output, session) {
           for (i in 1:length(desc$body)){
             tl <- append(tl, tag_list(i))
           }
-          tagList(tl)
+          tl <- paste('<meta charset="UTF-8">', tagList(tl))
+          HTML(tl)
         })
       }
     }
