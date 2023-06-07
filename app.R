@@ -171,26 +171,26 @@ server <- function(input, output, session) {
             
             #name
             txt_index[grep("Monument:|Title:", txt, ignore.case = T)] <- "name"
-            txt[txt_index == "name"] <- gsub("Monument: |Title: ", "", txt[txt_index == "name"], ignore.case = T)
+            txt[txt_index == "name"] <- gsub("Monument:|Title:", "", txt[txt_index == "name"], ignore.case = T)
             txt[txt_index == "name"] <- paste0("<b>", txt[txt_index == "name"], "</b>")
+            
+            #header
+            txt_index[grep("Header:", txt, ignore.case = F)] <- "header"
+            txt[txt_index == "header"] <- gsub("Header:", "", txt[txt_index == "header"], ignore.case = F)
+            txt[txt_index == "header"] <- paste0("<b>", txt[txt_index == "header"], "</b>")
             
             #subheader
             txt_index[grep("Subheader:|Part:", txt, ignore.case = T)] <- "subheader"
-            txt[txt_index == "subheader"] <- gsub("Subheader: |Part: ", "", txt[txt_index == "subheader"], ignore.case = T)
+            txt[txt_index == "subheader"] <- gsub("Subheader:|Part:", "", txt[txt_index == "subheader"], ignore.case = T)
             txt[txt_index == "subheader"] <- paste0("<b>", txt[txt_index == "subheader"], "</b>")
-            
-            #header
-            txt_index[grep("Header:", txt, ignore.case = T)] <- "header"
-            txt[txt_index == "header"] <- gsub("Header: ", "", txt[txt_index == "header"], ignore.case = T)
-            txt[txt_index == "header"] <- paste0("<b>", txt[txt_index == "header"], "</b>")
             
             #subtext
             txt_index[grep("Date:|Material:|Location:", txt, ignore.case = T)] <- "subtext"
-            txt[txt_index == "subtext"] <- gsub("Date: |Material: |Location: ", "", txt[txt_index == "subtext"], ignore.case = T)
+            txt[txt_index == "subtext"] <- gsub("Date:|Material:|Location:", "", txt[txt_index == "subtext"], ignore.case = T)
             
             #caption
             txt_index[grep("Caption:", txt, ignore.case = T)] <- "caption"
-            txt[txt_index == "caption"] <- gsub("Caption: ", "", txt[txt_index == "caption"], ignore.case = T)
+            txt[txt_index == "caption"] <- gsub("Caption:", "", txt[txt_index == "caption"], ignore.case = T)
             
             #bibliography
             txt_index[grep("Bibliography", txt, ignore.case = T)] <- "bibhead"
@@ -201,6 +201,7 @@ server <- function(input, output, session) {
             
             #body
             txt_index[txt_index == "text"] <- "body"
+            txt <- trimws(txt)
             
             #reading images
             img_out <- vector()
