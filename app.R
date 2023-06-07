@@ -381,11 +381,17 @@ server <- function(input, output, session) {
               caps <- desc$body[desc$body_index == "caption"] 
               cap_index <- (1:length(caps))[caps == desc$body[number]]
               #image
-              out <- tagList(
-                tags$img(src = desc$images[cap_index],
-                         width = v$width),
-                tags$text(HTML(paste0("</br>", desc$body[number], "</br>")), 
-                          style = "font-size:14px;"))
+              if (desc$body[number] != "") {
+                out <- tagList(
+                  tags$img(src = desc$images[cap_index],
+                           width = v$width),
+                  tags$text(HTML(paste0("</br>", desc$body[number], "</br>")), 
+                            style = "font-size:14px;"))
+              } else {
+                out <- tagList(
+                  tags$img(src = desc$images[cap_index],
+                           width = v$width))
+              }
             } else if (desc$body_index[number] == "break") {
               out <- tagList(tags$text(HTML("</br>"), 
                                        style = "font-size:14px;"))
