@@ -234,6 +234,16 @@ server <- function(input, output, session) {
             v$desc <- append(v$desc, list(read_desc(v$crosstab, i)))
           } 
         }
+        for (i in crosstab$name) {
+          mt <- crosstab %>%
+            filter(name == i) %>%
+            pull(Monument)
+          mt[mt == ""] <- "(0) Introduction"
+          if (length(mt) != 0) {
+            incProgress(1/n, detail = mt)
+            desc <- append(desc, list(read_desc(crosstab, i)))
+          } 
+        }
         names(v$desc) <- v$crosstab %>%
           filter(!is.na(name)) %>%
           pull(name)
@@ -334,7 +344,7 @@ server <- function(input, output, session) {
       if(input$features == "") { #no selection
         #zoom to all features
         fitBounds(proxy, 25.52876, 40.49953, 25.53177, 40.50177)
-        
+        mean(c(40.49953, 40.50177))
       } else { #specific feature selected
         selectA <- v$actual %>% filter(Name == input$features)
         selectR <- v$restored %>% filter(Name == input$features)
