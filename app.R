@@ -418,7 +418,7 @@ server <- function(input, output, session) {
       }
     }
   })
-  
+
   observeEvent(input$features, {
     #scroll to top
     runjs('
