@@ -3,7 +3,7 @@
           <head>
             <meta charset="utf-8">
             <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
-            <title>SamoWebsite_RestoredStatePlan_3857</title>
+            <title>Sanctuary of the Great Gods Restored State Plan</title>
 
             <!-- Leaflet -->
             <link rel="stylesheet" href="https://unpkg.com/leaflet@0.7.5/dist/leaflet.css" />
@@ -53,11 +53,11 @@
         var white = L.tileLayer("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAAA1BMVEX///+nxBvIAAAAH0lEQVQYGe3BAQ0AAADCIPunfg43YAAAAAAAAAAA5wIhAAAB9aK9BAAAAABJRU5ErkJggg==", {minZoom: 17, maxZoom: 22});
 
         // Overlay layers (TMS)
-        var lyr = L.tileLayer('./{z}/{x}/{y}.png', {tms: 1, opacity: 0.7, attribution: "American Excavations Samothrace", minZoom: 17, maxZoom: 22});
+        var lyr = L.tileLayer('./{z}/{x}/{y}.png', {tms: 1, opacity: 0.7, attribution: "©American Excavations Samothrace", minZoom: 17, maxZoom: 22});
 
         // Map
         var map = L.map('map', {
-            center: [40.50063989380418, 25.530276448373716],
+            center: [40.50064076805365, 25.530276179115873],
             zoom: 22,
             minZoom: 17,
             maxZoom: 22,
@@ -75,7 +75,7 @@
             return this._div;
         };
         title.update = function(props) {
-            this._div.innerHTML = "SamoWebsite_RestoredStatePlan_3857";
+            this._div.innerHTML = "Sanctuary of the Great Gods Restored State Plan";
         };
         title.addTo(map);
 
@@ -97,7 +97,7 @@
         L.control.layers(basemaps, overlaymaps, {collapsed: false}).addTo(map);
 
         // Fit to overlay bounds (SW and NE points with (lat, lon))
-        map.fitBounds([[40.49953361939759, 25.53175961500454], [40.501746168210765, 25.528793281742892]]);
+        map.fitBounds([[40.499524600141484, 25.531766755618683], [40.501756935965815, 25.52878560261306]]);
 
         </script>
 

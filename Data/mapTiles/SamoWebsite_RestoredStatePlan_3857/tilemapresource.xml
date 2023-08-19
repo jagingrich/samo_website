@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
     <TileMap version="1.0.0" tilemapservice="http://tms.osgeo.org/1.0.0">
-      <Title>SamoWebsite_RestoredStatePlan_3857</Title>
+      <Title>Sanctuary of the Great Gods Restored State Plan</Title>
       <Abstract></Abstract>
       <SRS>EPSG:3857</SRS>
-      <BoundingBox minx="25.52879328174289" miny="40.49953361939759" maxx="25.53175961500454" maxy="40.50174616821077"/>
-      <Origin x="25.52879328174289" y="40.49953361939759"/>
+      <BoundingBox minx="25.52878560261306" miny="40.49952460014148" maxx="25.53176675561868" maxy="40.50175693596582"/>
+      <Origin x="25.52878560261306" y="40.49952460014148"/>
       <TileFormat width="256" height="256" mime-type="image/png" extension="png"/>
       <TileSets profile="mercator">
         <TileSet href="17" units-per-pixel="1.19432856674194" order="17"/>
