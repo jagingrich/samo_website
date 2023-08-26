@@ -13,6 +13,10 @@
 
     <script src="https://rawgit.com/Turbo87/leaflet-sidebar/master/src/L.Control.Sidebar.js"></script>
     <link rel="stylesheet" href="https://rawgit.com/Turbo87/leaflet-sidebar/master/src/L.Control.Sidebar.css" />
+
+    <script src="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.js"></script>
+    <link rel="stylesheet" href="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.css" />
+
     <style>
         html, body {
             height: 100%;
@@ -24,26 +28,25 @@
             height: 100%;
         }
 
-        #refreshButton {
+        #leaflet-refresh-button {
             display: flex;
             align-items: center;
-            position: absolute;
-            top: 90px;
-            left: 10px;
+            position: relative;
             width: auto;
-            height: 40px;
+            height: auto;
+            padding: 2px 8px;
             background-color: white;
-            border-radius: 5px;
+            border-radius: 1px;
             border-color: gray;
             border-style: solid;
             border-width: 1px 1px 1px 1px;
-            opacity: 0.6;
+            opacity: 0.7;
             text-align: center;
             z-index: 500;
         }
 
-        #refreshButton:hover {
-            opacity: 0.8;
+        #leaflet-refresh-button:hover {
+            opacity: 1;
             cursor: pointer;
         }
 
@@ -71,7 +74,7 @@
             float: left;
             margin-right: 8px;
             opacity: 0.7;
-        }
+            }
     </style>
 </head>
 <body>
@@ -81,18 +84,28 @@
             <div id="sidebar-content">
                 Interactive Map Plan
             </div>
-        </div><button id="refreshButton" onclick="Action()">
-            All Monuments
-        </button>
+        </div>
     </div>
-
-
 
     <script>// initialize the map
 
-        //setting map creation vars
-        var map;
-        var sidebar;
+        //setting map variable, no layers
+        var map = L.map('map', {
+            center: [40.50065, 25.53026],
+            zoom: 18,
+            fullscreenControl: true,
+            fullscreenControlOptions: {
+                position: 'topleft'
+            }
+        });
+
+        //creating sidebar
+        var sidebar = L.control.sidebar('sidebar', {
+            position: 'right',
+            closeButton: false
+        });
+        map.addControl(sidebar);
+
         var state = 0;
 
         //setting description creation vars
@@ -104,7 +117,7 @@
 
         function roundWidth() {
             const q = window.innerWidth;
-            return q < 767 ? 'width ="700px"':
+            return q < 767 ? 'width ="700px"' :
                    q < 991 ? 'width ="230px"' :
                    q < 1199 ? 'width ="310px"' :
                               'width ="385px"';
@@ -177,8 +190,7 @@
             });
 
             asm = L.geoJSON(asm_load.responseJSON, {
-                style: style//,
-                //onEachFeature: onEachFeature
+                style: style
             });
 
             asm_over = L.geoJSON(asm_over_load.responseJSON, {
@@ -186,7 +198,7 @@
                 onEachFeature: onEachFeature
             });
 
-            var asp_all = L.layerGroup([asp, asm, asm_over]);
+            var asp_all = L.layerGroup([asp, asm, asm_over]).addTo(map);
 
             rsp = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png', {
                 maxZoom: 22,
@@ -206,31 +218,43 @@
 
             var rsp_all = L.layerGroup([rsp, rsm, rsm_over]);
 
-            map = L.map('map', {
-                center: [40.50065, 25.53026],
-                zoom: 18,
-                layers: [asp_all]
-            });
-
             var baseMaps = {
                 "Actual State Plan": asp_all
             };
 
             var layerControl = L.control.layers(baseMaps, null, { collapsed: false }).addTo(map);
-
             var newLayer = layerControl.addBaseLayer(rsp_all, "Restored State Plan");
 
+            //adding refresh button control
+            L.Control.Button = L.Control.extend({
+                options: {
+                    position: 'topright'
+                },
+                onAdd: function (map) {
+                    var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                    var button = L.DomUtil.create('a', 'leaflet-control-button', container);
+                    L.DomEvent.disableClickPropagation(button);
+                    L.DomEvent.on(button, 'click', function () {
+                        Action();
+                    });
 
-            //creating the sidebar
-            sidebar = L.control.sidebar('sidebar', {
-                position: 'right',
-                closeButton: false
+                    container.id = "leaflet-refresh-container";
+                    button.id = "leaflet-refresh-button";
+                    button.title = "Zoom Out to All Monuments";
+                    button.innerHTML = 'All Monuments';
+
+                    return container;
+                },
+                onRemove: function (map) { },
             });
-
-            map.addControl(sidebar);
+            var control = new L.Control.Button()
+            control.addTo(map);
 
             //update state
-            state = 1;
+            setTimeout(function () {
+                state = 1;
+            }, 500);
+
 
             //phasing and legend colors
             function getColor(d) {
@@ -291,7 +315,7 @@
                 if (e.target.feature.properties.Plan == "Actual") {
                     asm_over.resetStyle(e.target);
                 }
-                
+
             }
 
             //zooming to feature: paired with onClick
@@ -331,11 +355,11 @@
                 var div = L.DomUtil.create('div', 'info legend'),
                     grades = [1, 2, 3, 4, 5, 6],
                     labels = ['Late fifth to early fourth century BCE',
-                              'Late fourth century BCE',
-                              'Third century BCE',
-                              'Second to first century BCE',
-                              'First to second century CE',
-                              'Post Antique'];
+                        'Late fourth century BCE',
+                        'Third century BCE',
+                        'Second to first century BCE',
+                        'First to second century CE',
+                        'Post Antique'];
 
                 for (var i = 0; i < grades.length; i++) {
                     div.innerHTML +=
@@ -355,26 +379,13 @@
             }, 1);
         }
 
-        //var map = L.map('map', {
-        //    center: [40.50065, 25.53026],
-        //    zoom: 18,
-        //    layers: [asp_all, rsp_all]
-        //});
-
-        //var baseMaps = {
-        //    //"Restored State Plan": rsp_all,
-        //    "Actual State Plan": asp_all
-        //};
-
-        //var layerControl = L.control.layers(baseMaps, null, { collapsed: false }).addTo(map);
-
         //generating the text for the sidebar descriptions from the github description files
         var storedText;
         var splitText;
         var outText = "";
-        
+
         const url = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapDescriptions/";
-        
+
         function readTxt(desc) {
             const full = desc + "/SamoWebsite_" + desc + ".txt"
             outText = "";
@@ -388,43 +399,54 @@
 
             function done() {
                 var capcount = 0;
+                var bibState = 0;
                 for (var n = 0; n < splitText.length; n++) {
                     var newText = splitText[n];
-                    if (newText.match("Title: |Monument: ") != null) {
+                    if (newText.match("JAG_UNEDITED|Glennon") != null) {
+                        newText = "";
+                    } else if (newText.match("Title: |Monument: ") != null) {
                         newText = newText.replace('Title: ', '');
                         newText = newText.replace('Monument: ', '');
-                        newText = '<text style="font-size:30px;"><b>' + newText + '</b></br></text><text style="font-size:10px;"></br></text>';
+                        newText = '<text style="font-size:30px;"><b>' + newText + '</b></text></br></br>';//</br><text style="font-size:10px;"></br></text>';
                     } else if (newText.match("Subheader: |Part: ") != null) {
                         newText = newText.replace('Subheader: ', '');
                         newText = newText.replace('Part: ', '');
-                        newText = '<text style="font-size:10px;"></br></text><text style="font-size:16px;"><b>' + newText + '</b></br></text>';
+                        newText = '<text style="font-size:16px;"><b>' + newText + '</b></text></br>';
                     } else if (newText.match("Header: ") != null) {
                         newText = newText.replace('Header: ', '');
-                        newText = '<text style="font-size:24px;"><b>' + newText + '</b></br></text><text style="font-size:10px;"></br></text>';
+                        newText = '<text style="font-size:24px;"><b>' + newText + '</text></br>';//<text style="font-size:10px;"></br></text>';
                     } else if (newText.match("Bibliography:") != null) {
-                        newText = '<text style="font-size:20px;"><b>' + newText + '</b></br></text>';
+                        newText = '<text style="font-size:20px;"><b>' + newText + '</text></b></br>';
+                        bibState = 1;
                     } else if (newText.match("Caption:") != null) {
                         capcount += 1;
                         const capUrl = url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg";
-                        newText = newText.replace('Caption:', '</br><img src="' + capUrl + '" ' + width +' /></br>');
-                        newText = '<text style="font-size:12px;">' + newText + '</br></br></text>';
+                        newText = newText.replace('Caption:', '</br><img src="' + capUrl + '" ' + width + ' /></br>');
+                        newText = '<text style="font-size:11px;">' + newText + '</text></br></br>';
                     } else if (newText.match("Date:|Material|Location:") != null) {
                         newText = newText.replace('Date: ', '');
                         newText = newText.replace('Material: ', '');
                         newText = newText.replace('Location: ', '');
                         var nextText = splitText[n + 1];
                         if (nextText.match("Date:|Material|Location:") != null) {
-                            newText += '</br>';
+                            newText = '<text style="font-size:11px;">' + newText + '</text></br>';
                         } else {
-                            newText += '</br></br>';
+                            newText = '<text style="font-size:11px;">' + newText + '</text></br></br>';
                         }
                     } else {
-                        newText += '</br></br>';
+                        if (bibState == 0) {
+                            newText = '<text style="font-size:14px;">' + newText + '</text></br></br>';
+                        } else {
+                            newText = '<text style="font-size:11px;">' + newText + '</text></br></br>';
+                        }
+                        
                     }
                     outText += newText;
                 }
                 outText += '<text style="font-size:10px;"></br>---</br> Plan date: 2021 - 2022. Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann.</text>'
                 for (i = 0; i < 3; i++) {
+                    outText = outText.replace('  ', ' ');
+                    outText = outText.replace('</br> </br>', '</br></br>');
                     outText = outText.replace('</br></br></br>', '</br></br>');
                 }
 
@@ -436,26 +458,22 @@
             readTxt(desc);
             setTimeout(function () {
                 sidebar.setContent(description);
-                //console.log(webID);
                 resetScroll();
             }, 750);
-            
+
         }
-                
-        setTimeout(function () {
-            sidebar.show();
-            //document.getElementById("sidebar").style.width = "140%";
-            //document.getElementById("sidebar").style.left = "-40%";
-        }, 500);
 
         //setting the initial sidebar text on loading the map
         output(webID);
+        setTimeout(function () {
+            sidebar.show();
+        }, 500);
 
         //All Monuments button behavior
         function Action() {
-            map.flyTo([40.50065, 25.53149], 18);
             webID = "(0)Introduction";
             output(webID);
+            map.flyTo([40.50065, 25.53149], 18);
         }
 
     </script>
