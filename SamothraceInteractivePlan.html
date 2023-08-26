@@ -73,7 +73,7 @@
             height: 18px;
             float: left;
             margin-right: 8px;
-            opacity: 0.7;
+            opacity: 0.85;
             }
     </style>
 </head>
@@ -137,28 +137,28 @@
         window.addEventListener("resize", updateWidth);
 
         //loading geojson vector layers
-        var asm_load = $.ajax({
-            url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Phases.geojson",
-            dataType: "json",
-            //success: console.log("data successfully loaded."),
-            error: function (xhr) {
-                alert(xhr.statusText)
-            }
-        })
+        //var asm_load = $.ajax({
+            //url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Phases.geojson",
+            //dataType: "json",
+            //success: console.log("ASM successfully loaded."),
+            //error: function (xhr) {
+            //    alert(xhr.statusText)
+            //}
+        //})
 
-        var rsm_load = $.ajax({
-            url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Phases.geojson",
-            dataType: "json",
-            //success: console.log("data successfully loaded."),
-            error: function (xhr) {
-                alert(xhr.statusText)
-            }
-        })
+        //var rsm_load = $.ajax({
+        //    url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Phases.geojson",
+        //    dataType: "json",
+        //    success: console.log("ASM Overlay successfully loaded."),
+        //    error: function (xhr) {
+        //        alert(xhr.statusText)
+        //    }
+        //})
 
         var asm_over_load = $.ajax({
             url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.geojson",
             dataType: "json",
-            //success: console.log("data successfully loaded."),
+            success: console.log("RSM successfully loaded."),
             error: function (xhr) {
                 alert(xhr.statusText)
             }
@@ -167,20 +167,28 @@
         var rsm_over_load = $.ajax({
             url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.geojson",
             dataType: "json",
-            //success: console.log("data successfully loaded."),
+            success: console.log("RSM Overlay successfully loaded."),
             error: function (xhr) {
                 alert(xhr.statusText)
             }
         })
 
-        $.when(asm_load && rsm_load && asm_over_load && rsm_over_load).done(function () {
-            var asp;
-            var asm;
-            var asm_over;
+        var asp;
+        var asm;
+        var asm_over;
 
-            var rsp;
-            var rsm;
-            var rsm_over;
+        var rsp;
+        var rsm;
+        var rsm_over;
+
+        $.when(asm_over_load && rsm_over_load).done(function () {
+
+            //asm = asm_load.responseJSON;
+            asm_over = asm_over_load.responseJSON;
+            //rsm = rsm_load.responseJSON;
+            rsm_over = rsm_over_load.responseJSON;
+
+        }).done(function () {
 
             asp = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStatePlan_3857/{z}/{x}/{y}.png', {
                 maxZoom: 22,
@@ -189,16 +197,20 @@
                 attribution: 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace'
             });
 
-            asm = L.geoJSON(asm_load.responseJSON, {
-                style: style
+            //asm = L.geoJSON(asm, {
+            //    style: style
+            //});
+
+            asm = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStateMonuments_3857/{z}/{x}/{y}.png', {
+                maxZoom: 22,
+                minZoom: 17,
+                tms: true
             });
 
-            asm_over = L.geoJSON(asm_over_load.responseJSON, {
+            asm_over = L.geoJSON(asm_over, {
                 style: styleTransparent,
                 onEachFeature: onEachFeature
             });
-
-            var asp_all = L.layerGroup([asp, asm, asm_over]).addTo(map);
 
             rsp = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png', {
                 maxZoom: 22,
@@ -207,15 +219,22 @@
                 attribution: 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace'
             });
 
-            rsm = L.geoJSON(rsm_load.responseJSON, {
-                style: style
+            //rsm = L.geoJSON(rsm, {
+            //    style: style
+            //});
+
+            rsm = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png', {
+                maxZoom: 22,
+                minZoom: 17,
+                tms: true
             });
 
-            rsm_over = L.geoJSON(rsm_over_load.responseJSON, {
+            rsm_over = L.geoJSON(rsm_over, {
                 style: styleTransparent,
                 onEachFeature: onEachFeature
             });
-
+        
+            var asp_all = L.layerGroup([asp, asm, asm_over]).addTo(map);
             var rsp_all = L.layerGroup([rsp, rsm, rsm_over]);
 
             var baseMaps = {
@@ -255,28 +274,27 @@
                 state = 1;
             }, 500);
 
-
             //phasing and legend colors
             function getColor(d) {
-                return d < 1.5 ? '#94d1e7' :
-                       d < 2.5 ? '#007abc' :
-                       d < 3.5 ? '#00a33c' :
-                       d < 4.5 ? '#ff871f' :
-                       d < 5.5 ? '#ff171F' :
-                       d < 6.5 ? '#fdf500' :
+                return d == "1" ? '#94d1e7' :
+                       d == "2" ? '#007abc' :
+                       d == "3" ? '#00a33c' :
+                       d == "4" ? '#ff871f' :
+                       d == "5" ? '#ff171F' :
+                       d == "6" ? '#fdf500' :
                                  '#00000000';
             }
 
             //colored phasing layer style
-            function style(feature) {
-                return {
-                    fillColor: getColor(feature.properties.Phase),
-                    weight: 1.2,
-                    opacity: 1,
-                    color: getColor(feature.properties.Phase),
-                    fillOpacity: 0.85
-                }
-            }
+            //function style(feature) {
+            //    return {
+            //        fillColor: getColor(feature.properties.Phase),
+            //        weight: 1.2,
+            //        opacity: 1,
+            //        color: getColor(feature.properties.Phase),
+            //        fillOpacity: 0.85
+            //    }
+            //}
 
             //transparent overlay layer style
             function styleTransparent(feature) {
@@ -334,7 +352,6 @@
                 const corner2 = L.latLng(Number(bbox[3]), Number(bbox[2]) + dist);
                 newBounds = L.latLngBounds(corner1, corner2);
                 map.flyToBounds(newBounds);
-                //console.log(map.getZoom());
             }
 
             //layer responsiveness
@@ -345,7 +362,6 @@
                     click: zoomToFeature
                 });
             }
-
 
             //creating legend
             var legend = L.control({ position: 'bottomleft' });
@@ -407,47 +423,47 @@
                     } else if (newText.match("Title: |Monument: ") != null) {
                         newText = newText.replace('Title: ', '');
                         newText = newText.replace('Monument: ', '');
-                        newText = '<text style="font-size:30px;"><b>' + newText + '</b></text></br></br>';//</br><text style="font-size:10px;"></br></text>';
+                        newText = '<text style="font-size:30px;"><b>' + newText + '</b></text><br><br>';
                     } else if (newText.match("Subheader: |Part: ") != null) {
                         newText = newText.replace('Subheader: ', '');
                         newText = newText.replace('Part: ', '');
-                        newText = '<text style="font-size:16px;"><b>' + newText + '</b></text></br>';
+                        newText = '<text style="font-size:16px;"><b>' + newText + '</b></text><br>';
                     } else if (newText.match("Header: ") != null) {
                         newText = newText.replace('Header: ', '');
-                        newText = '<text style="font-size:24px;"><b>' + newText + '</text></br>';//<text style="font-size:10px;"></br></text>';
+                        newText = '<text style="font-size:24px;"><b>' + newText + '</b></text><br>';
                     } else if (newText.match("Bibliography:") != null) {
-                        newText = '<text style="font-size:20px;"><b>' + newText + '</text></b></br>';
+                        newText = '<text style="font-size:20px;"><b>' + newText + '</text></b><br>';
                         bibState = 1;
                     } else if (newText.match("Caption:") != null) {
                         capcount += 1;
                         const capUrl = url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg";
-                        newText = newText.replace('Caption:', '</br><img src="' + capUrl + '" ' + width + ' /></br>');
-                        newText = '<text style="font-size:11px;">' + newText + '</text></br></br>';
+                        newText = newText.replace('Caption:', '<img src="' + capUrl + '" ' + width + ' /><br>');
+                        newText = '<text style="font-size:11px;">' + newText + '</text><br><br>';
                     } else if (newText.match("Date:|Material|Location:") != null) {
                         newText = newText.replace('Date: ', '');
                         newText = newText.replace('Material: ', '');
                         newText = newText.replace('Location: ', '');
                         var nextText = splitText[n + 1];
                         if (nextText.match("Date:|Material|Location:") != null) {
-                            newText = '<text style="font-size:11px;">' + newText + '</text></br>';
+                            newText = '<text style="font-size:11px;">' + newText + '</text><br>';
                         } else {
-                            newText = '<text style="font-size:11px;">' + newText + '</text></br></br>';
+                            newText = '<text style="font-size:11px;">' + newText + '</text><br><br>';
                         }
+                    } else if (newText.trim().length === 0) {
+                        newText += '<br>';
                     } else {
                         if (bibState == 0) {
-                            newText = '<text style="font-size:14px;">' + newText + '</text></br></br>';
+                            newText = '<text style="font-size:14px;">' + newText + '</text><br><br>';
                         } else {
-                            newText = '<text style="font-size:11px;">' + newText + '</text></br></br>';
+                            newText = '<text style="font-size:11px;">' + newText + '</text><br><br>';
                         }
                         
                     }
-                    outText += newText;
+                    outText += newText.trim();
                 }
-                outText += '<text style="font-size:10px;"></br>---</br> Plan date: 2021 - 2022. Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann.</text>'
+                outText += '<text style="font-size:10px;"><br>---<br> Plan date: 2021 - 2022. Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann.</text>'
                 for (i = 0; i < 3; i++) {
-                    outText = outText.replace('  ', ' ');
-                    outText = outText.replace('</br> </br>', '</br></br>');
-                    outText = outText.replace('</br></br></br>', '</br></br>');
+                    outText = outText.replace('<br><br><br>', '<br><br>');
                 }
 
                 description = outText;
