@@ -90,6 +90,8 @@
     <script>// initialize the map
 
         //setting map variable, no layers
+        var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879),
+                                       L.latLng(40.50176, 25.53177));
         var map = L.map('map', {
             center: [40.50065, 25.53026],
             zoom: 18,
@@ -98,6 +100,7 @@
                 position: 'topleft'
             }
         });
+        map.flyToBounds(mapbounds);
 
         //creating sidebar
         var sidebar = L.control.sidebar('sidebar', {
@@ -117,16 +120,17 @@
 
         function roundWidth() {
             const q = window.innerWidth;
-            return q < 767 ? 'width ="700px"' :
-                   q < 991 ? 'width ="230px"' :
-                   q < 1199 ? 'width ="310px"' :
-                              'width ="385px"';
+            return q < 767 ? [700, 767]:
+                   q < 991 ? [230, 305]:
+                   q < 1199 ? [310, 390]:
+                              [385, 460];
         }
 
+        var w = 0;
         function updateWidth() {
             var oldWidth = width;
-            const w = Math.round(window.innerWidth / 3.5);
-            width = roundWidth();
+            w = roundWidth()[1];
+            width = 'width ="' + roundWidth()[0] + 'px"';
             if (state == 1) {
                 description = description.replaceAll(oldWidth, width);
                 sidebar.setContent(description);
@@ -158,7 +162,7 @@
         var asm_over_load = $.ajax({
             url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.geojson",
             dataType: "json",
-            success: console.log("RSM successfully loaded."),
+            success: console.log("ASM Overlay successfully loaded."),
             error: function (xhr) {
                 alert(xhr.statusText)
             }
@@ -343,15 +347,7 @@
                 output(webID);
 
                 //zoom code
-                var bounds = 0;
-                bounds = e.target.getBounds();
-                var newBounds = bounds.toBBoxString();
-                const bbox = newBounds.split(",");
-                const dist = (Number(bbox[2]) - Number(bbox[0]));
-                const corner1 = L.latLng(Number(bbox[1]), Number(bbox[0]));
-                const corner2 = L.latLng(Number(bbox[3]), Number(bbox[2]) + dist);
-                newBounds = L.latLngBounds(corner1, corner2);
-                map.flyToBounds(newBounds);
+                map.flyToBounds(e.target.getBounds(), {paddingBottomRight: [w, 0]});
             }
 
             //layer responsiveness
@@ -489,7 +485,7 @@
         function Action() {
             webID = "(0)Introduction";
             output(webID);
-            map.flyTo([40.50065, 25.53149], 18);
+            map.flyToBounds(mapbounds, { paddingBottomRight: [w, 0] });
         }
 
     </script>
