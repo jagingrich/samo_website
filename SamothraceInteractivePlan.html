@@ -74,17 +74,65 @@
             float: left;
             margin-right: 8px;
             opacity: 0.85;
+        }
+
+        #dropdown {
+            width: 100%;
+            top: 10px;
+            position: absolute;
+        }
+
+        #dropdown-contents {
+            position: absolute;
+            width: 20%;
+            overflow: hidden;
+            height: auto;
+            padding: 4px 2px;
+            background-color: white;
+            border-radius: 5px;
+            border-color: gray;
+            border-style: solid;
+            border-width: 1px 1px 1px 1px;
+            opacity: 0.7;
+            text-align: center;
+            z-index: 400;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        @media (max-width: 891px) {
+            #dropdown-contents {
+                left: 15%;
+                width: 15%;
             }
+        }
+        @media (min-width: 892px) and (max-width: 1299px) {
+            #dropdown-contents {
+                left: 20%;
+            }
+        }
+        @media (min-width: 1300px) {
+            #dropdown-contents {
+                left: 20%;
+                width: 25%;
+            }
+        }
+
+        #dropdown-contents:hover {
+            opacity: 1;
+            cursor: pointer;
+        }
+
     </style>
 </head>
 <body>
     <div id="map">
-        <div id="sidebar">
+<div id="sidebar">
             <h1>American Excavations Samothrace</h1>
             <div id="sidebar-content">
                 Interactive Map Plan
             </div>
         </div>
+        <div id="dropdown"></div>
     </div>
 
     <script>// initialize the map
@@ -140,25 +188,6 @@
         updateWidth();
         window.addEventListener("resize", updateWidth);
 
-        //loading geojson vector layers
-        //var asm_load = $.ajax({
-            //url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Phases.geojson",
-            //dataType: "json",
-            //success: console.log("ASM successfully loaded."),
-            //error: function (xhr) {
-            //    alert(xhr.statusText)
-            //}
-        //})
-
-        //var rsm_load = $.ajax({
-        //    url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Phases.geojson",
-        //    dataType: "json",
-        //    success: console.log("ASM Overlay successfully loaded."),
-        //    error: function (xhr) {
-        //        alert(xhr.statusText)
-        //    }
-        //})
-
         var asm_over_load = $.ajax({
             url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.geojson",
             dataType: "json",
@@ -180,17 +209,63 @@
         var asp;
         var asm;
         var asm_over;
+        var asm_load;
 
         var rsp;
         var rsm;
         var rsm_over;
+        var rsm_load;
+
+        var mnmts = [];
+        var labels = [];
+        var webIDs = [];
 
         $.when(asm_over_load && rsm_over_load).done(function () {
 
-            //asm = asm_load.responseJSON;
             asm_over = asm_over_load.responseJSON;
-            //rsm = rsm_load.responseJSON;
+            asm_load = asm_over_load.responseJSON;
+
+            for (var m = 0; m < asm_over.features.length; m++) {
+                var sub = asm_over.features[m];
+                var label = sub.properties.Label;
+                var name = '(' + label + ') ' + sub.properties.Name;
+                
+                label = label.split("-")[0];
+                label = label.replace("a", ".2");
+                label = label.replace("b", ".5");
+                mnmts.push([Number(label), name, sub.properties.WebCode]);
+            }
+
             rsm_over = rsm_over_load.responseJSON;
+            rsm_load = rsm_over_load.responseJSON;
+
+            for (var m = 0; m < rsm_over.features.length; m++) {
+                var sub = rsm_over.features[m];
+                var label = sub.properties.Label;
+                var name = '(' + label + ') ' + sub.properties.Name;
+
+                label = label.split("-")[0];
+                label = label.replace("a", ".2");
+                label = label.replace("b", ".5");
+                mnmts.push([Number(label), name, sub.properties.WebCode]);
+            }
+            mnmts = mnmts.sort(function (a, b) {
+                return a[0] - b[0];
+            });
+
+            for (var m = 0; m < mnmts.length; m++) {
+                sub = mnmts[m];
+                labels.push(sub[1]);
+                webIDs.push(sub[2]);
+            }
+
+            function uniq(a) {
+                return a.filter(function (item, pos, ary) {
+                    return !pos || item != ary[pos - 1];
+                });
+            }
+            labels = uniq(labels);
+            webIDs = uniq(webIDs);
 
         }).done(function () {
 
@@ -200,10 +275,6 @@
                 tms: true,
                 attribution: 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace'
             });
-
-            //asm = L.geoJSON(asm, {
-            //    style: style
-            //});
 
             asm = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStateMonuments_3857/{z}/{x}/{y}.png', {
                 maxZoom: 22,
@@ -223,10 +294,6 @@
                 attribution: 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace'
             });
 
-            //rsm = L.geoJSON(rsm, {
-            //    style: style
-            //});
-
             rsm = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png', {
                 maxZoom: 22,
                 minZoom: 17,
@@ -237,7 +304,7 @@
                 style: styleTransparent,
                 onEachFeature: onEachFeature
             });
-        
+
             var asp_all = L.layerGroup([asp, asm, asm_over]).addTo(map);
             var rsp_all = L.layerGroup([rsp, rsm, rsm_over]);
 
@@ -247,6 +314,41 @@
 
             var layerControl = L.control.layers(baseMaps, null, { collapsed: false }).addTo(map);
             var newLayer = layerControl.addBaseLayer(rsp_all, "Restored State Plan");
+
+            //creating legend
+            var legend = L.control({ position: 'bottomleft' });
+
+            legend.onAdd = function (map) {
+
+                var div = L.DomUtil.create('div', 'info legend'),
+                    grades = [1, 2, 3, 4, 5, 6],
+                    labels = ['Late fifth to early fourth century BCE',
+                        'Late fourth century BCE',
+                        'Third century BCE',
+                        'Second to first century BCE',
+                        'First to second century CE',
+                        'Post Antique'];
+
+                for (var i = 0; i < grades.length; i++) {
+                    div.innerHTML +=
+                        '<i style="background:' + getColor(grades[i]) + '"></i> ' + labels[i] + '<br>';
+                }
+
+                return div;
+            };
+
+            legend.addTo(map);
+
+            //phasing and legend colors
+            function getColor(d) {
+                return d == "1" ? '#94d1e7' :
+                       d == "2" ? '#007abc' :
+                       d == "3" ? '#00a33c' :
+                       d == "4" ? '#ff871f' :
+                       d == "5" ? '#ff171F' :
+                       d == "6" ? '#fdf500' :
+                                 '#00000000';
+            }
 
             //adding refresh button control
             L.Control.Button = L.Control.extend({
@@ -273,32 +375,75 @@
             var control = new L.Control.Button()
             control.addTo(map);
 
-            //update state
-            setTimeout(function () {
-                state = 1;
-            }, 500);
+            //adding monuments dropdown control
+            L.Control.Dropdown = L.Control.extend({
+                initialize: function (placeholder) {
+                    // Find content container
+                    var content = this._contentContainer = L.DomUtil.get(placeholder);
 
-            //phasing and legend colors
-            function getColor(d) {
-                return d == "1" ? '#94d1e7' :
-                       d == "2" ? '#007abc' :
-                       d == "3" ? '#00a33c' :
-                       d == "4" ? '#ff871f' :
-                       d == "5" ? '#ff171F' :
-                       d == "6" ? '#fdf500' :
-                                 '#00000000';
+                    // Remove the content container from its original parent        
+                    if (content.parentNode != undefined) {
+                        content.parentNode.removeChild(content);
+                    }
+
+                    // Create dropdown container
+                    var container = this._container =
+                        L.DomUtil.create('div', 'leaflet-dropdown');
+
+                    // Style and attach content container
+                    L.DomUtil.addClass(content, 'leaflet-control');
+                    container.appendChild(content);
+
+                },
+                onAdd: function (map) {
+                    var container = this._container;
+                    var content = this._contentContainer;
+
+                    // Attach dropdown container to controls container
+                    var controlContainer = map._controlContainer;
+                    controlContainer.insertBefore(container, controlContainer.firstChild);
+
+                    this._map = map;
+
+                    var dropdown = L.DomUtil.create('select', 'dropdown-contents', content);
+                    L.DomEvent.disableClickPropagation(dropdown);
+
+                    dropdown.innerHTML += '<option value="(0)Introduction" selected>Select Monument</option>';
+
+                    for (var k = 0; k < labels.length; k++) {
+                        sub0 = webIDs[k];
+                        sub1 = labels[k];
+                        dropdown.innerHTML += '<option value="' + sub0 + '">' + sub1 + '</option>';
+                    }
+
+                    dropdown.addEventListener('change', onSelect);
+                    dropdown.id = "dropdown-contents";
+                    dropdown.title = "Select Monument Name to Zoom In";
+
+                    return this;
+                },
+                onRemove: function (map) { }
+            });
+            L.control.dropdown = function (placeholder) {
+                return new L.Control.Dropdown(placeholder);
+            };
+
+            function onSelect() {
+                var dropdown = document.getElementById('dropdown-contents');
+                var index = dropdown.options.selectedIndex;
+                if (dropdown[index].value == '(0)Introduction') {
+                    Action();
+                } else {
+                    selectFeature(dropdown[index].value);
+                }
             }
 
-            //colored phasing layer style
-            //function style(feature) {
-            //    return {
-            //        fillColor: getColor(feature.properties.Phase),
-            //        weight: 1.2,
-            //        opacity: 1,
-            //        color: getColor(feature.properties.Phase),
-            //        fillOpacity: 0.85
-            //    }
-            //}
+            //update state & create dropdown
+            setTimeout(function () {
+                state = 1;
+                L.control.dropdown('dropdown').addTo(map);
+            }, 500);
+
 
             //transparent overlay layer style
             function styleTransparent(feature) {
@@ -337,7 +482,43 @@
                 if (e.target.feature.properties.Plan == "Actual") {
                     asm_over.resetStyle(e.target);
                 }
+            }
 
+            function selectFeature(webCode) {
+                //update text output code
+                webID = webCode;
+                output(webID);
+
+                //select objects
+                var asmMatch = asm_load;
+                var asmMatchSub = "No Match";
+                for (var j = 0; j < asmMatch.features.length; j++) {
+                    if (asmMatch.features[j].properties.WebCode == webCode) {
+                        asmMatchSub = asmMatch.features[j];
+                    }
+                }
+                
+                var rsmMatch = rsm_load;
+                var rsmMatchSub = "No Match";
+                for (var j = 0; j < rsmMatch.features.length; j++) {
+                    if (rsmMatch.features[j].properties.WebCode == webCode) {
+                        rsmMatchSub = rsmMatch.features[j];
+                    }
+                }
+
+                //zoom to bounds code
+                var bounds;
+
+                if (asmMatchSub == "No Match") {
+                    bounds = L.geoJSON(rsmMatchSub).getBounds();
+                } else if (rsmMatchSub == "No Match") {
+                    bounds = L.geoJSON(asmMatchSub).getBounds();
+                } else {
+                    var group = L.featureGroup([L.geoJSON(asmMatchSub), L.geoJSON(rsmMatchSub)]);
+                    bounds = group.getBounds();
+                }
+
+                map.flyToBounds(bounds, { paddingBottomRight: [w, 0] });
             }
 
             //zooming to feature: paired with onClick
@@ -346,8 +527,42 @@
                 webID = e.target.feature.properties.WebCode;
                 output(webID);
 
-                //zoom code
-                map.flyToBounds(e.target.getBounds(), {paddingBottomRight: [w, 0]});
+                //update dropdown selection
+                var sel = document.getElementById("dropdown-contents");
+                sel.value = webID;
+
+                //select object
+                var match;
+                var sub = e.target.feature.properties.Name;
+                var matchSub = "No Match";
+                if (e.target.feature.properties.Plan == "Restored") {
+                    match = asm_load;
+                    for (var j = 0; j < match.features.length; j++) {
+                        if (match.features[j].properties.Name == sub) {
+                            matchSub = match.features[j];
+                        }
+                    }
+                }
+                if (e.target.feature.properties.Plan == "Actual") {
+                    match = rsm_load;
+                    for (var j = 0; j < match.features.length; j++) {
+                        if (match.features[j].properties.Name == sub) {
+                            matchSub = match.features[j];
+                        }
+                    }
+                }
+
+                //zoom to bounds code
+                var bounds;
+
+                if (matchSub == "No Match") {
+                    bounds = e.target.getBounds();
+                } else {
+                    var group = L.featureGroup([e.target, L.geoJSON(matchSub)]);
+                    bounds = group.getBounds();
+                }
+                
+                map.flyToBounds(bounds, {paddingBottomRight: [w, 0]});
             }
 
             //layer responsiveness
@@ -358,30 +573,6 @@
                     click: zoomToFeature
                 });
             }
-
-            //creating legend
-            var legend = L.control({ position: 'bottomleft' });
-
-            legend.onAdd = function (map) {
-
-                var div = L.DomUtil.create('div', 'info legend'),
-                    grades = [1, 2, 3, 4, 5, 6],
-                    labels = ['Late fifth to early fourth century BCE',
-                        'Late fourth century BCE',
-                        'Third century BCE',
-                        'Second to first century BCE',
-                        'First to second century CE',
-                        'Post Antique'];
-
-                for (var i = 0; i < grades.length; i++) {
-                    div.innerHTML +=
-                        '<i style="background:' + getColor(grades[i]) + '"></i> ' + labels[i] + '<br>';
-                }
-
-                return div;
-            };
-
-            legend.addTo(map);
         });
 
         //reseting scroll position on layer click
@@ -458,7 +649,7 @@
                     outText += newText.trim();
                 }
                 outText += '<text style="font-size:10px;"><br>---<br> Plan date: 2021 - 2022. Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann.</text>'
-                for (i = 0; i < 3; i++) {
+                for (var i = 0; i < 3; i++) {
                     outText = outText.replace('<br><br><br>', '<br><br>');
                 }
 
@@ -483,8 +674,15 @@
 
         //All Monuments button behavior
         function Action() {
+            //update description text
             webID = "(0)Introduction";
             output(webID);
+
+            //update dropdown selection
+            var sel = document.getElementById("dropdown-contents");
+            sel.value = webID;
+
+            //zoom to all map bounds
             map.flyToBounds(mapbounds, { paddingBottomRight: [w, 0] });
         }
 
