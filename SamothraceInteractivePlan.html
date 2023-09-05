@@ -218,13 +218,13 @@
 </head>
 <body>
     <div id="map">
-<div id="sidebar">
+        <div id="sidebar">
             <h1>American Excavations Samothrace</h1>
             <div id="sidebar-content">
                 Interactive Map Plan
             </div>
         </div>
-        <div id="dropdown"></div>
+        <div id="dropdown" class="dropdown"></div>
     </div>
 
     <script>// initialize the map
@@ -232,6 +232,7 @@
         //setting map variable, no layers
         var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879),
                                        L.latLng(40.50176, 25.53177));
+
         var map = L.map('map', {
             center: [40.50065, 25.53026],
             zoom: 18,
@@ -257,6 +258,7 @@
 
         //setting description image widths according to window size
         var width = 'width ="400px"';
+        var w = 0;
 
         function roundWidth() {
             const q = window.innerWidth;
@@ -267,7 +269,6 @@
                               [525, 600];
         }
 
-        var w = 0;
         function updateWidth() {
             var oldWidth = width;
             w = roundWidth()[1];
@@ -277,7 +278,6 @@
                 sidebar.setContent(description);
             }
         }
-
         updateWidth();
         window.addEventListener("resize", updateWidth);
 
@@ -299,15 +299,8 @@
             }
         })
 
-        var asp;
-        var asm;
         var asm_over;
-        var asm_load;
-
-        var rsp;
-        var rsm;
         var rsm_over;
-        var rsm_load;
 
         var mnmts = [];
         var labels = [];
@@ -316,356 +309,353 @@
         $.when(asm_over_load && rsm_over_load).done(function () {
 
             asm_over = asm_over_load.responseJSON;
-            asm_load = asm_over_load.responseJSON;
-
-            for (var m = 0; m < asm_over.features.length; m++) {
-                var sub = asm_over.features[m];
-                var label = sub.properties.Label;
-                var name = '(' + label + ') ' + sub.properties.Name;
-                
-                label = label.split("-")[0];
-                label = label.replace("a", ".2");
-                label = label.replace("b", ".5");
-                mnmts.push([Number(label), name, sub.properties.WebCode]);
-            }
-
             rsm_over = rsm_over_load.responseJSON;
-            rsm_load = rsm_over_load.responseJSON;
 
-            for (var m = 0; m < rsm_over.features.length; m++) {
-                var sub = rsm_over.features[m];
-                var label = sub.properties.Label;
-                var name = '(' + label + ') ' + sub.properties.Name;
+            $.when(asm_over && rsm_over).done(function () {
+                for (var m = 0; m < asm_over.features.length; m++) {
+                    var sub = asm_over.features[m];
+                    var label = sub.properties.Label;
+                    var name = '(' + label + ') ' + sub.properties.Name;
 
-                label = label.split("-")[0];
-                label = label.replace("a", ".2");
-                label = label.replace("b", ".5");
-                mnmts.push([Number(label), name, sub.properties.WebCode]);
-            }
-            mnmts = mnmts.sort(function (a, b) {
-                return a[0] - b[0];
-            });
-
-            for (var m = 0; m < mnmts.length; m++) {
-                sub = mnmts[m];
-                labels.push(sub[1]);
-                webIDs.push(sub[2]);
-            }
-
-            function uniq(a) {
-                return a.filter(function (item, pos, ary) {
-                    return !pos || item != ary[pos - 1];
-                });
-            }
-            labels = uniq(labels);
-            webIDs = uniq(webIDs);
-
-        }).done(function () {
-
-            asp = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStatePlan_3857/{z}/{x}/{y}.png', {
-                maxZoom: 22,
-                minZoom: 17,
-                tms: true,
-                attribution: 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace'
-            });
-
-            asm = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStateMonuments_3857/{z}/{x}/{y}.png', {
-                maxZoom: 22,
-                minZoom: 17,
-                tms: true
-            });
-
-            asm_over = L.geoJSON(asm_over, {
-                style: styleTransparent,
-                onEachFeature: onEachFeature
-            });
-
-            rsp = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png', {
-                maxZoom: 22,
-                minZoom: 17,
-                tms: true,
-                attribution: 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace'
-            });
-
-            rsm = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png', {
-                maxZoom: 22,
-                minZoom: 17,
-                tms: true
-            });
-
-            rsm_over = L.geoJSON(rsm_over, {
-                style: styleTransparent,
-                onEachFeature: onEachFeature
-            });
-
-            var asp_all = L.layerGroup([asp, asm, asm_over]).addTo(map);
-            var rsp_all = L.layerGroup([rsp, rsm, rsm_over]);
-
-            var baseMaps = {
-                "Actual State Plan": asp_all
-            };
-
-            var layerControl = L.control.layers(baseMaps, null, { collapsed: false }).addTo(map);
-            var newLayer = layerControl.addBaseLayer(rsp_all, "Restored State Plan");
-
-            //creating legend
-            var legend = L.control({ position: 'bottomleft' });
-
-            legend.onAdd = function (map) {
-
-                var div = L.DomUtil.create('div', 'info legend'),
-                    grades = [1, 2, 3, 4, 5, 6],
-                    labels = ['Late fifth to early fourth century BCE',
-                        'Late fourth century BCE',
-                        'Third century BCE',
-                        'Second to first century BCE',
-                        'First to second century CE',
-                        'Post Antique'];
-
-                for (var i = 0; i < grades.length; i++) {
-                    div.innerHTML +=
-                        '<i style="background:' + getColor(grades[i]) + '"></i> ' + labels[i] + '<br>';
+                    label = label.split("-")[0];
+                    label = label.replace("a", ".2");
+                    label = label.replace("b", ".5");
+                    mnmts.push([Number(label), name, sub.properties.WebCode]);
                 }
 
-                return div;
-            };
+                for (var m = 0; m < rsm_over.features.length; m++) {
+                    var sub = rsm_over.features[m];
+                    var label = sub.properties.Label;
+                    var name = '(' + label + ') ' + sub.properties.Name;
 
-            legend.addTo(map);
+                    label = label.split("-")[0];
+                    label = label.replace("a", ".2");
+                    label = label.replace("b", ".5");
+                    mnmts.push([Number(label), name, sub.properties.WebCode]);
+                }
+                mnmts = mnmts.sort(function (a, b) {
+                    return a[0] - b[0];
+                });
 
-            //phasing and legend colors
-            function getColor(d) {
-                return d == "1" ? '#94d1e7' :
-                       d == "2" ? '#007abc' :
-                       d == "3" ? '#00a33c' :
-                       d == "4" ? '#ff871f' :
-                       d == "5" ? '#ff171F' :
-                       d == "6" ? '#fdf500' :
-                                 '#00000000';
-            }
+                for (var m = 0; m < mnmts.length; m++) {
+                    sub = mnmts[m];
+                    labels.push(sub[1]);
+                    webIDs.push(sub[2]);
+                }
 
-            //adding refresh button control
-            L.Control.Button = L.Control.extend({
-                options: {
-                    position: 'topright'
-                },
-                onAdd: function (map) {
-                    var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-                    var button = L.DomUtil.create('a', 'leaflet-control-button', container);
-                    L.DomEvent.disableClickPropagation(button);
-                    L.DomEvent.on(button, 'click', function () {
+                function uniq(a) {
+                    return a.filter(function (item, pos, ary) {
+                        return !pos || item != ary[pos - 1];
+                    });
+                }
+                labels = uniq(labels);
+                webIDs = uniq(webIDs);
+
+                var asp = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStatePlan_3857/{z}/{x}/{y}.png', {
+                    maxZoom: 22,
+                    minZoom: 17,
+                    tms: true,
+                    attribution: 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace'
+                });
+
+                var asm = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStateMonuments_3857/{z}/{x}/{y}.png', {
+                    maxZoom: 22,
+                    minZoom: 17,
+                    tms: true
+                });
+
+                asm_over = L.geoJSON(asm_over, {
+                    style: styleTransparent,
+                    onEachFeature: onEachFeature
+                });
+
+                var rsp = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png', {
+                    maxZoom: 22,
+                    minZoom: 17,
+                    tms: true,
+                    attribution: 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace'
+                });
+
+                var rsm = L.tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png', {
+                    maxZoom: 22,
+                    minZoom: 17,
+                    tms: true
+                });
+
+                rsm_over = L.geoJSON(rsm_over, {
+                    style: styleTransparent,
+                    onEachFeature: onEachFeature
+                });
+
+                var asp_all = L.layerGroup([asp, asm, asm_over]).addTo(map);
+                var rsp_all = L.layerGroup([rsp, rsm, rsm_over]);
+
+                var baseMaps = {
+                    "Actual State Plan": asp_all
+                };
+
+                var layerControl = L.control.layers(baseMaps, null, { collapsed: false }).addTo(map);
+                var newLayer = layerControl.addBaseLayer(rsp_all, "Restored State Plan");
+
+                //creating legend
+                var legend = L.control({ position: 'bottomleft' });
+
+                legend.onAdd = function (map) {
+
+                    var div = L.DomUtil.create('div', 'info legend'),
+                        grades = [1, 2, 3, 4, 5, 6],
+                        labels = ['Late fifth to early fourth century BCE',
+                            'Late fourth century BCE',
+                            'Third century BCE',
+                            'Second to first century BCE',
+                            'First to second century CE',
+                            'Post Antique'];
+
+                    for (var i = 0; i < grades.length; i++) {
+                        div.innerHTML +=
+                            '<i style="background:' + getColor(grades[i]) + '"></i> ' + labels[i] + '<br>';
+                    }
+
+                    return div;
+                };
+
+                legend.addTo(map);
+
+                //phasing and legend colors
+                function getColor(d) {
+                    return d == "1" ? '#94d1e7' :
+                           d == "2" ? '#007abc' :
+                           d == "3" ? '#00a33c' :
+                           d == "4" ? '#ff871f' :
+                           d == "5" ? '#ff171F' :
+                           d == "6" ? '#fdf500' :
+                                      '#00000000';
+                }
+
+                //adding refresh button control
+                L.Control.Button = L.Control.extend({
+                    options: {
+                        position: 'topright'
+                    },
+                    onAdd: function (map) {
+                        var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                        var button = L.DomUtil.create('a', 'leaflet-control-button', container);
+                        L.DomEvent.disableClickPropagation(button);
+                        L.DomEvent.on(button, 'click', function () {
+                            Action();
+                        });
+
+                        container.id = "leaflet-refresh-container";
+                        button.id = "leaflet-refresh-button";
+                        button.title = "Zoom Out to All Monuments";
+                        button.innerHTML = 'All Monuments';
+
+                        return container;
+                    },
+                    onRemove: function (map) { },
+                });
+                var control = new L.Control.Button()
+                control.addTo(map);
+
+                //adding monuments dropdown control
+                L.Control.Dropdown = L.Control.extend({
+                    initialize: function (placeholder) {
+                        // Find content container
+                        var content = this._contentContainer = L.DomUtil.get(placeholder);
+
+                        // Remove the content container from its original parent        
+                        if (content.parentNode != undefined) {
+                            content.parentNode.removeChild(content);
+                        }
+
+                        // Create dropdown container
+                        var container = this._container =
+                            L.DomUtil.create('div', 'leaflet-dropdown');
+
+                        // Style and attach content container
+                        L.DomUtil.addClass(content, 'leaflet-control');
+                        container.appendChild(content);
+
+                    },
+                    onAdd: function (map) {
+                        var container = this._container;
+                        var content = this._contentContainer;
+
+                        // Attach dropdown container to controls container
+                        var controlContainer = map._controlContainer;
+                        controlContainer.insertBefore(container, controlContainer.firstChild);
+
+                        this._map = map;
+
+                        var dropdown = L.DomUtil.create('select', 'dropdown-contents', content);
+                        L.DomEvent.disableClickPropagation(dropdown);
+
+                        dropdown.innerHTML += '<option value="(0)Introduction" selected>Select Monument</option>';
+
+                        for (var k = 0; k < labels.length; k++) {
+                            sub0 = webIDs[k];
+                            sub1 = labels[k];
+                            dropdown.innerHTML += '<option value="' + sub0 + '">' + sub1 + '</option>';
+                        }
+
+                        dropdown.addEventListener('change', onSelect);
+                        dropdown.id = "dropdown-contents";
+                        dropdown.title = "Select Monument Name to Zoom In";
+
+                        return this;
+                    },
+                    onRemove: function (map) { }
+                });
+                L.control.dropdown = function (placeholder) {
+                    return new L.Control.Dropdown(placeholder);
+                };
+
+                function onSelect() {
+                    var dropdown = document.getElementById('dropdown-contents');
+                    var index = dropdown.options.selectedIndex;
+                    if (dropdown[index].value == '(0)Introduction') {
                         Action();
+                    } else {
+                        selectFeature(dropdown[index].value);
+                    }
+                }
+
+                //update state & create dropdown
+                setTimeout(function () {
+                    state = 1;
+                    L.control.dropdown('dropdown').addTo(map);
+                }, 250);
+
+
+                //transparent overlay layer style
+                function styleTransparent(feature) {
+                    return {
+                        fillColor: '#00000000',
+                        weight: 0,
+                        opacity: 0,
+                        color: '#00000000',
+                        fillOpacity: 0
+                    }
+                }
+
+                //mouseover highlight behavior and highlight reset
+                function highlightFeature(e) {
+                    var layer = e.target;
+
+                    layer.setStyle({
+                        fillColor: '#00000000',
+                        weight: 2.5,
+                        opacity: 1,
+                        color: '#FFF',
+                        dashArray: '',
+                        fillOpacity: 0
                     });
 
-                    container.id = "leaflet-refresh-container";
-                    button.id = "leaflet-refresh-button";
-                    button.title = "Zoom Out to All Monuments";
-                    button.innerHTML = 'All Monuments';
-
-                    return container;
-                },
-                onRemove: function (map) { },
-            });
-            var control = new L.Control.Button()
-            control.addTo(map);
-
-            //adding monuments dropdown control
-            L.Control.Dropdown = L.Control.extend({
-                initialize: function (placeholder) {
-                    // Find content container
-                    var content = this._contentContainer = L.DomUtil.get(placeholder);
-
-                    // Remove the content container from its original parent        
-                    if (content.parentNode != undefined) {
-                        content.parentNode.removeChild(content);
-                    }
-
-                    // Create dropdown container
-                    var container = this._container =
-                        L.DomUtil.create('div', 'leaflet-dropdown');
-
-                    // Style and attach content container
-                    L.DomUtil.addClass(content, 'leaflet-control');
-                    container.appendChild(content);
-
-                },
-                onAdd: function (map) {
-                    var container = this._container;
-                    var content = this._contentContainer;
-
-                    // Attach dropdown container to controls container
-                    var controlContainer = map._controlContainer;
-                    controlContainer.insertBefore(container, controlContainer.firstChild);
-
-                    this._map = map;
-
-                    var dropdown = L.DomUtil.create('select', 'dropdown-contents', content);
-                    L.DomEvent.disableClickPropagation(dropdown);
-
-                    dropdown.innerHTML += '<option value="(0)Introduction" selected>Select Monument</option>';
-
-                    for (var k = 0; k < labels.length; k++) {
-                        sub0 = webIDs[k];
-                        sub1 = labels[k];
-                        dropdown.innerHTML += '<option value="' + sub0 + '">' + sub1 + '</option>';
-                    }
-
-                    dropdown.addEventListener('change', onSelect);
-                    dropdown.id = "dropdown-contents";
-                    dropdown.title = "Select Monument Name to Zoom In";
-
-                    return this;
-                },
-                onRemove: function (map) { }
-            });
-            L.control.dropdown = function (placeholder) {
-                return new L.Control.Dropdown(placeholder);
-            };
-
-            function onSelect() {
-                var dropdown = document.getElementById('dropdown-contents');
-                var index = dropdown.options.selectedIndex;
-                if (dropdown[index].value == '(0)Introduction') {
-                    Action();
-                } else {
-                    selectFeature(dropdown[index].value);
-                }
-            }
-
-            //update state & create dropdown
-            setTimeout(function () {
-                state = 1;
-                L.control.dropdown('dropdown').addTo(map);
-            }, 500);
-
-
-            //transparent overlay layer style
-            function styleTransparent(feature) {
-                return {
-                    fillColor: '#00000000',
-                    weight: 0,
-                    opacity: 0,
-                    color: '#00000000',
-                    fillOpacity: 0
-                }
-            }
-
-            //mouseover highlight behavior and highlight reset
-            function highlightFeature(e) {
-                var layer = e.target;
-
-                layer.setStyle({
-                    fillColor: '#00000000',
-                    weight: 2.5,
-                    opacity: 1,
-                    color: '#FFF',
-                    dashArray: '',
-                    fillOpacity: 0
-                });
-
-                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-                    layer.bringToFront();
-                }
-            }
-
-            //this is the reset
-            function resetHighlight(e) {
-                if (e.target.feature.properties.Plan == "Restored") {
-                    rsm_over.resetStyle(e.target);
-                }
-                if (e.target.feature.properties.Plan == "Actual") {
-                    asm_over.resetStyle(e.target);
-                }
-            }
-
-            function selectFeature(webCode) {
-                //update text output code
-                webID = webCode;
-                output(webID);
-
-                //select objects
-                var asmMatch = asm_load;
-                var asmMatchSub = "No Match";
-                for (var j = 0; j < asmMatch.features.length; j++) {
-                    if (asmMatch.features[j].properties.WebCode == webCode) {
-                        asmMatchSub = asmMatch.features[j];
-                    }
-                }
-                
-                var rsmMatch = rsm_load;
-                var rsmMatchSub = "No Match";
-                for (var j = 0; j < rsmMatch.features.length; j++) {
-                    if (rsmMatch.features[j].properties.WebCode == webCode) {
-                        rsmMatchSub = rsmMatch.features[j];
+                    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                        layer.bringToFront();
                     }
                 }
 
-                //zoom to bounds code
-                var bounds;
-
-                if (asmMatchSub == "No Match") {
-                    bounds = L.geoJSON(rsmMatchSub).getBounds();
-                } else if (rsmMatchSub == "No Match") {
-                    bounds = L.geoJSON(asmMatchSub).getBounds();
-                } else {
-                    var group = L.featureGroup([L.geoJSON(asmMatchSub), L.geoJSON(rsmMatchSub)]);
-                    bounds = group.getBounds();
+                //this is the reset
+                function resetHighlight(e) {
+                    if (e.target.feature.properties.Plan == "Restored") {
+                        rsm_over.resetStyle(e.target);
+                    }
+                    if (e.target.feature.properties.Plan == "Actual") {
+                        asm_over.resetStyle(e.target);
+                    }
                 }
 
-                map.flyToBounds(bounds, { paddingBottomRight: [w, 0] });
-            }
+                function selectFeature(webCode) {
+                    //update text output code
+                    webID = webCode;
+                    output(webID);
 
-            //zooming to feature: paired with onClick
-            function zoomToFeature(e) {
-                //update text output code
-                webID = e.target.feature.properties.WebCode;
-                output(webID);
-
-                //update dropdown selection
-                var sel = document.getElementById("dropdown-contents");
-                sel.value = webID;
-
-                //select object
-                var match;
-                var sub = e.target.feature.properties.Name;
-                var matchSub = "No Match";
-                if (e.target.feature.properties.Plan == "Restored") {
-                    match = asm_load;
-                    for (var j = 0; j < match.features.length; j++) {
-                        if (match.features[j].properties.Name == sub) {
-                            matchSub = match.features[j];
+                    //select objects
+                    var asmMatch = asm_over_load.responseJSON;
+                    var asmMatchSub = "No Match";
+                    for (var j = 0; j < asmMatch.features.length; j++) {
+                        if (asmMatch.features[j].properties.WebCode == webCode) {
+                            asmMatchSub = asmMatch.features[j];
                         }
                     }
-                }
-                if (e.target.feature.properties.Plan == "Actual") {
-                    match = rsm_load;
-                    for (var j = 0; j < match.features.length; j++) {
-                        if (match.features[j].properties.Name == sub) {
-                            matchSub = match.features[j];
+
+                    var rsmMatch = rsm_over_load.responseJSON;
+                    var rsmMatchSub = "No Match";
+                    for (var j = 0; j < rsmMatch.features.length; j++) {
+                        if (rsmMatch.features[j].properties.WebCode == webCode) {
+                            rsmMatchSub = rsmMatch.features[j];
                         }
                     }
+
+                    //zoom to bounds code
+                    var bounds;
+
+                    if (asmMatchSub == "No Match") {
+                        bounds = L.geoJSON(rsmMatchSub).getBounds();
+                    } else if (rsmMatchSub == "No Match") {
+                        bounds = L.geoJSON(asmMatchSub).getBounds();
+                    } else {
+                        var group = L.featureGroup([L.geoJSON(asmMatchSub), L.geoJSON(rsmMatchSub)]);
+                        bounds = group.getBounds();
+                    }
+
+                    map.flyToBounds(bounds, { paddingBottomRight: [w, 0] });
                 }
 
-                //zoom to bounds code
-                var bounds;
+                //zooming to feature: paired with onClick
+                function zoomToFeature(e) {
+                    //update text output code
+                    webID = e.target.feature.properties.WebCode;
+                    output(webID);
 
-                if (matchSub == "No Match") {
-                    bounds = e.target.getBounds();
-                } else {
-                    var group = L.featureGroup([e.target, L.geoJSON(matchSub)]);
-                    bounds = group.getBounds();
+                    //update dropdown selection
+                    var sel = document.getElementById("dropdown-contents");
+                    sel.value = webID;
+
+                    //select object
+                    var match;
+                    var sub = e.target.feature.properties.Name;
+                    var matchSub = "No Match";
+                    if (e.target.feature.properties.Plan == "Restored") {
+                        match = asm_over_load.responseJSON;
+                        for (var j = 0; j < match.features.length; j++) {
+                            if (match.features[j].properties.Name == sub) {
+                                matchSub = match.features[j];
+                            }
+                        }
+                    }
+                    if (e.target.feature.properties.Plan == "Actual") {
+                        match = rsm_over_load.responseJSON;
+                        for (var j = 0; j < match.features.length; j++) {
+                            if (match.features[j].properties.Name == sub) {
+                                matchSub = match.features[j];
+                            }
+                        }
+                    }
+
+                    //zoom to bounds code
+                    var bounds;
+
+                    if (matchSub == "No Match") {
+                        bounds = e.target.getBounds();
+                    } else {
+                        var group = L.featureGroup([e.target, L.geoJSON(matchSub)]);
+                        bounds = group.getBounds();
+                    }
+
+                    map.flyToBounds(bounds, { paddingBottomRight: [w, 0] });
                 }
-                
-                map.flyToBounds(bounds, {paddingBottomRight: [w, 0]});
-            }
 
-            //layer responsiveness
-            function onEachFeature(feature, layer) {
-                layer.on({
-                    mouseover: highlightFeature,
-                    mouseout: resetHighlight,
-                    click: zoomToFeature
-                });
-            }
+                //layer responsiveness
+                function onEachFeature(feature, layer) {
+                    layer.on({
+                        mouseover: highlightFeature,
+                        mouseout: resetHighlight,
+                        click: zoomToFeature
+                    });
+                }
+            });
         });
 
         //reseting scroll position on layer click
