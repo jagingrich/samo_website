@@ -79,5 +79,6 @@ function updateOutput(desc, url, var) {
     setTimeout(function () {
         sidebar.setContent(var)
         resetScroll()
+        console.log(var)
     }, 100);
 }
