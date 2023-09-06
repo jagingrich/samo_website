@@ -1,5 +1,5 @@
 //generating text description from input URL and loading to sidebar
-function readTxt(desc, url) {
+function readTxt(desc, url, var) {
     var splitText;
     var outText = "Start Text";
     var readText = $.ajax({
@@ -61,7 +61,8 @@ function readTxt(desc, url) {
             outText = outText.replace('<br><br><br>', '<br><br>');
         }
 
-        sidebar.setContent(outText);
+        //sidebar.setContent(outText);
+        window[var] = outText;
     });
 }
 
@@ -73,9 +74,10 @@ function resetScroll() {
 }
 
 //package for updating sidebar output
-function updateOutput(desc, url) {
-    readTxt(desc, url);
+function updateOutput(desc, url, var) {
+    readTxt(desc, url, var);
     setTimeout(function () {
+        sidebar.setContent(var)
         resetScroll()
-    }, 10);
+    }, 100);
 }
