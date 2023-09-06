@@ -12,11 +12,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
 
     <script src="https://rawgit.com/Turbo87/leaflet-sidebar/master/src/L.Control.Sidebar.js"></script>
-    
+
     <script src="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.js"></script>
     <link rel="stylesheet" href="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.css" />
 
-    <link rel="stylesheet" href="https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapCode/SamothraceInteractivePlan.css" />
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
         html, body {
@@ -63,8 +64,9 @@
         var state = 0;
 
         //setting description creation vars
+        const url = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapDescriptions/";
         var webID = "(0)Introduction";
-        var description = '';
+        var description;
 
         //setting description image widths according to window size
         var width = 'width ="400px"';
@@ -92,21 +94,13 @@
         window.addEventListener("resize", updateWidth);
 
         var asm_over_load = $.ajax({
-            url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.geojson",
-            dataType: "json",
-            success: console.log("ASM Overlay successfully loaded."),
-            error: function (xhr) {
-                alert(xhr.statusText)
-            }
+            url: "https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.geojson",
+            dataType: "json"
         })
 
         var rsm_over_load = $.ajax({
-            url: "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.geojson",
-            dataType: "json",
-            success: console.log("RSM Overlay successfully loaded."),
-            error: function (xhr) {
-                alert(xhr.statusText)
-            }
+            url: "https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.geojson",
+            dataType: "json"
         })
 
         var asm_over;
@@ -353,12 +347,12 @@
                     var layer = e.target;
 
                     layer.setStyle({
-                        fillColor: '#00000000',
+                        fillColor: '#FFF',
                         weight: 2.5,
                         opacity: 1,
                         color: '#FFF',
                         dashArray: '',
-                        fillOpacity: 0
+                        fillOpacity: 0.25
                     });
 
                     if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
@@ -379,7 +373,7 @@
                 function selectFeature(webCode) {
                     //update text output code
                     webID = webCode;
-                    output(webID);
+                    updateOutput(webID, url);
 
                     //select objects
                     var asmMatch = asm_over_load.responseJSON;
@@ -417,7 +411,7 @@
                 function zoomToFeature(e) {
                     //update text output code
                     webID = e.target.feature.properties.WebCode;
-                    output(webID);
+                    updateOutput(webID, url);
 
                     //update dropdown selection
                     var sel = document.getElementById("dropdown-contents");
@@ -468,99 +462,8 @@
             });
         });
 
-        //reseting scroll position on layer click
-        function resetScroll() {
-            window.setTimeout(() => {
-                document.getElementById("sidebar").scrollTop = 0;
-            }, 1);
-        }
-
-        //generating the text for the sidebar descriptions from the github description files
-        var storedText;
-        var splitText;
-        var outText = "";
-
-        const url = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapDescriptions/";
-
-        function readTxt(desc) {
-            const full = desc + "/SamoWebsite_" + desc + ".txt"
-            outText = "";
-            fetch(url + full)
-                .then(function (response) {
-                    response.text().then(function (text) {
-                        splitText = text.match(/[^\r\n]+/g);
-                        done();
-                    });
-                });
-
-            function done() {
-                var capcount = 0;
-                var bibState = 0;
-                for (var n = 0; n < splitText.length; n++) {
-                    var newText = splitText[n];
-                    if (newText.match("JAG_UNEDITED|Glennon") != null) {
-                        newText = "";
-                    } else if (newText.match("Title: |Monument: ") != null) {
-                        newText = newText.replace('Title: ', '');
-                        newText = newText.replace('Monument: ', '');
-                        newText = '<text style="font-size:30px;"><b>' + newText + '</b></text><br><br>';
-                    } else if (newText.match("Subheader: |Part: ") != null) {
-                        newText = newText.replace('Subheader: ', '');
-                        newText = newText.replace('Part: ', '');
-                        newText = '<text style="font-size:16px;"><b>' + newText + '</b></text><br>';
-                    } else if (newText.match("Header: ") != null) {
-                        newText = newText.replace('Header: ', '');
-                        newText = '<text style="font-size:24px;"><b>' + newText + '</b></text><br>';
-                    } else if (newText.match("Bibliography:") != null) {
-                        newText = '<text style="font-size:20px;"><b>' + newText + '</text></b><br>';
-                        bibState = 1;
-                    } else if (newText.match("Caption:") != null) {
-                        capcount += 1;
-                        const capUrl = url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg";
-                        newText = newText.replace('Caption:', '<img src="' + capUrl + '" ' + width + ' /><br>');
-                        newText = '<text style="font-size:11px;">' + newText + '</text><br><br>';
-                    } else if (newText.match("Date:|Material|Location:") != null) {
-                        newText = newText.replace('Date: ', '');
-                        newText = newText.replace('Material: ', '');
-                        newText = newText.replace('Location: ', '');
-                        var nextText = splitText[n + 1];
-                        if (nextText.match("Date:|Material|Location:") != null) {
-                            newText = '<text style="font-size:11px;">' + newText + '</text><br>';
-                        } else {
-                            newText = '<text style="font-size:11px;">' + newText + '</text><br><br>';
-                        }
-                    } else if (newText.trim().length === 0) {
-                        newText += '<br>';
-                    } else {
-                        if (bibState == 0) {
-                            newText = '<text style="font-size:14px;">' + newText + '</text><br><br>';
-                        } else {
-                            newText = '<text style="font-size:11px;">' + newText + '</text><br><br>';
-                        }
-                        
-                    }
-                    outText += newText.trim();
-                }
-                outText += '<text style="font-size:10px;"><br>---<br> Plan date: 2021 - 2022. Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann.</text>'
-                for (var i = 0; i < 3; i++) {
-                    outText = outText.replace('<br><br><br>', '<br><br>');
-                }
-
-                description = outText;
-            }
-        }
-
-        function output(desc) {
-            readTxt(desc);
-            setTimeout(function () {
-                sidebar.setContent(description);
-                resetScroll();
-            }, 750);
-
-        }
-
         //setting the initial sidebar text on loading the map
-        output(webID);
+        updateOutput(webID, url);
         setTimeout(function () {
             sidebar.show();
         }, 500);
@@ -569,7 +472,7 @@
         function Action() {
             //update description text
             webID = "(0)Introduction";
-            output(webID);
+            updateOutput(webID, url);
 
             //update dropdown selection
             var sel = document.getElementById("dropdown-contents");
