@@ -1,3 +1,4 @@
+//generating text description from input URL and loading to sidebar
 function readTxt(desc, url) {
     var splitText;
     var outText = "Start Text";
@@ -61,8 +62,20 @@ function readTxt(desc, url) {
         }
 
         sidebar.setContent(outText);
-        setTimeout(function () {
-            resetScroll()
-        }, 100);
     });
+}
+
+//reseting scroll position on layer click
+function resetScroll() {
+    window.setTimeout(() => {
+        document.getElementById("sidebar").scrollTop = 0;
+    }, 1);
+}
+
+//package for updating sidebar output
+function updateOutput(desc, url) {
+    readTxt(desc, url);
+    setTimeout(function () {
+        resetScroll()
+    }, 100);
 }
