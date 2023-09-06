@@ -75,7 +75,5 @@ function resetScroll() {
 //package for updating sidebar output
 function updateOutput(desc, url) {
     readTxt(desc, url);
-    setTimeout(function () {
-        resetScroll()
-    }, 100);
+    resetScroll()
 }
