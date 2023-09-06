@@ -77,8 +77,8 @@ function resetScroll() {
 function updateOutput(desc, url, var) {
     readTxt(desc, url, var);
     setTimeout(function () {
-        sidebar.setContent(var)
-        resetScroll()
-        console.log(var)
+        sidebar.setContent(var);
+        resetScroll();
+        console.log(var);
     }, 100);
 }
