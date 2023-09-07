@@ -35,8 +35,14 @@ function splitText(desc, url, text) {
         } else if (newText.match("Caption:") != null) {
             capcount += 1;
             const capUrl = url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg";
-            newText = newText.replace('Caption:', '<img src="' + capUrl + '" ' + width + ' /><br>');
-            newText = '<text style="font-size:11px;">' + newText + '</text><br><br>';
+            newText = newText.replace('Caption: ', '');
+            newText = newText.trim();
+            if (newText.trim().length === 0) {
+                newText = '<br>';
+            } else {
+                newText = '<text style="font-size:11px;">' + newText + '</text><br><br>';
+            }
+            newText = '<img src="' + capUrl + '" ' + width + ' /><br>' + newText;
         } else if (newText.match("Date:|Material|Location:") != null) {
             newText = newText.replace('Date: ', '');
             newText = newText.replace('Material: ', '');
