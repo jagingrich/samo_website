@@ -35,7 +35,7 @@ function splitText(desc, url, text) {
         } else if (newText.match("Caption:") != null) {
             capcount += 1;
             const capUrl = url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg";
-            newText = newText.replace('Caption: ', '');
+            newText = newText.replace('Caption:', '');
             newText = newText.trim();
             if (newText.trim().length === 0) {
                 newText = '<br>';
