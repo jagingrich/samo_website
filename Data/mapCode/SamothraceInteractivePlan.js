@@ -7,40 +7,64 @@ function readTxt(desc, url) {
     });
 }
 
-function textHTMLOutput(text, { size = 16, bold = false, italics = false, hanging = false, space = true } = {}) {
+//html formating for text strings
+function textHTMLOutput(text, { size = 16, bold = false, italics = false, paragraph = 'paragraph', linebreak = true } = {}) {
     var input = text;
     var head = '<text style="font-size:' + size + 'px;">';
     var foot = '</text><br>';
-    if (bold == true) {
+    if (bold == true) {//html for bold
         head += '<b>';
         foot = '</b>' + foot;
     }
-    if (italics == true) {
+    if (italics == true) {//html for italics
         head += '<i>';
         foot = '</i>' + foot;
     }
-    if (space == true) {
+    if (linebreak == true) {//adding an additional linebreak
         foot += '<br>';
     }
-    if (hanging == true) {
-        head = '<div style="text-indent: -36px; padding-left: 36px;">' + head;
-        foot += '</div>'
+    switch (paragraph) {//paragraph styling
+        case 'indent':
+            head = '<div style="text-indent: 36px;">' + head;
+            foot += '</div>'
+            break;
+        case 'hanging':
+            head = '<div style="text-indent: -36px; padding-left: 36px;">' + head;
+            foot += '</div>'
+            break;
+        default:
     }
-    return head + input + foot;
+    return head + input + foot;//output
 }
 
 //formatting text output for sidebar
-function splitText(desc, url, text) {
-    var outText;
+function splitTxt(text, { remove = [null], replace = [[keyword = null, replacement = null]]}) {
+    //split input text to individual lines
     var startText = text.match(/[^\r\n]+/g);
     var splitText = [];
 
+    //string of keywords to remove
+    var remCat = remove[0];
+    if (remove.length > 1) {
+        for (var c = 1; c < remove.length; c++) {
+            remCat += '|' + remove[c];
+        }
+    }
+
+    //searching each line for replacement keywords, text codes
     for (var n = 0; n < startText.length; n++) {
         var newText = startText[n].trim();
-        if (newText.match("Bibliography:") != null) {
-            newText = 'Bibliography: Selected Bibliography';
+
+        //replacing lines based on replacement keywords
+        for (var r = 0; r < replace.length; r++) {
+            var repSub = replace[r];
+            if (newText.match(repSub[0]) != null) {
+                newText = repSub[1];
+            }
         }
-        if (newText.match("JAG_UNEDITED|Glennon") == null) {
+
+        //generating line/paragraph codes
+        if (newText.match(remCat) == null) { //removing lines based on removal keywords
             var txtCode = newText.split(' ')[0];
             if (txtCode.match(":") != null) {
                 splitText.push([txtCode.replace(':', ''), newText.replace(txtCode, '').trim()]);
@@ -53,11 +77,16 @@ function splitText(desc, url, text) {
             }
         }
     }
+    return splitText;//output
+}
 
+function outText(desc, url, text, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
+    var splitText = splitTxt(text, { remove: remove, replace: replace });
+    var outText = "";
     var capcount = 0;
     var defaultSize = 14;
-    var defaultPara = false;
-    outText = "";
+    var defaultPara = 'paragraph';
+    //formatting each text output based on text code
     for (var n = 0; n < splitText.length; n++) {
         var input = splitText[n];
         var newText = input[1];
@@ -68,25 +97,25 @@ function splitText(desc, url, text) {
                 break;
             case 'Subheader':
             case 'Part':
-                newText = textHTMLOutput(newText, {size: 16, bold: true, space: false});
+                newText = textHTMLOutput(newText, {size: 16, bold: true, linebreak: false});
                 break;
             case 'Header':
-                newText = textHTMLOutput(newText, {size: 24, bold: true, space: false});
+                newText = textHTMLOutput(newText, {size: 24, bold: true, linebreak: false});
                 break;
             case 'Bibliography':
                 defaultSize = 11;
-                defaultPara = true;
-                newText = textHTMLOutput(newText, {size: 18, bold: true, space: false});
+                defaultPara = 'hanging';
+                newText = textHTMLOutput(newText, {size: 18, bold: true, linebreak: false});
                 break;
             case 'Caption':
                 capcount += 1;
-                const capUrl = url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg";
+                const capUrl = '<img src="' + url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg" + '" ' + width + ' /><br>';
                 if (newText.length === 0) {
                     newText = '<br>';
                 } else {
                     newText = textHTMLOutput(newText, {size: 11});
                 }
-                newText = '<img src="' + capUrl + '" ' + width + ' /><br>' + newText;
+                newText = capUrl + newText;
                 break;
             case 'Date':
             case 'Material':
@@ -96,7 +125,7 @@ function splitText(desc, url, text) {
                     case 'Date':
                     case 'Material':
                     case 'Location':
-                        newText = textHTMLOutput(newText, {size: 11, space: false});
+                        newText = textHTMLOutput(newText, {size: 11, linebreak: false});
                         break;
                     default:
                         newText = textHTMLOutput(newText, {size: 11});
@@ -104,21 +133,22 @@ function splitText(desc, url, text) {
                 }
                 break;
             case 'Body':
-                newText = textHTMLOutput(newText, {size: defaultSize, hanging: defaultPara});
+                newText = textHTMLOutput(newText, {size: defaultSize, paragraph: defaultPara});
                 break;
             default:
                 newText = '<br>';
         }
         outText += newText;
     }
-
-    outText += textHTMLOutput('---', { size: 10, space: false });
-    outText += textHTMLOutput('Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann', { size: 10, space: false });
-    outText += textHTMLOutput('Plan date: 2021 - 2022', { size: 10, space: false });
-    for (var i = 0; i < 3; i++) {
+    //appending plan date and date attribution
+    outText += textHTMLOutput('---', { size: 10, linebreak: false });
+    outText += textHTMLOutput('Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann', { size: 10, linebreak: false });
+    outText += textHTMLOutput('Plan date: 2021 - 2022', { size: 10, linebreak: false });
+    //remove extra line breaks
+    while (outText.match('<br><br><br>') != null) {
         outText = outText.replaceAll('<br><br><br>', '<br><br>');
     }
-    return outText;
+    return outText;//output
 }
 
 //reseting scroll position on layer click
@@ -129,10 +159,10 @@ function resetScroll() {
 }
 
 //packaged function for updating sidebar output
-function updateOutput(desc, url) {
+function updateOutput(desc, url, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
     //pulling text from url, formatting when done, loading to sidebar
     readTxt(desc, url).done(function (response) {
-        description = splitText(desc, url, response);
+        description = outText(desc, url, response, { remove: remove, replace: replace });
         sidebar.setContent(description);
     });
     //reset scroll position
