@@ -16,7 +16,7 @@
     <script src="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.js"></script>
     <link rel="stylesheet" href="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.css" />
 
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothracePlan_Functions.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothracePlan_Function.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
@@ -375,7 +375,7 @@
             function selectFeature(webCode) {
                 //update text output code
                 webID = webCode;
-                updateOutput(webID, url);
+                updateOutput(webID, url, { remove: ['JAG_UNEDITED', 'Glennon'], replace: [['Bibliography:', 'Bibliography: Selected Bibliography']] });
 
                 //select objects
                 var asmMatch = asm_output;
@@ -416,7 +416,7 @@
             function zoomToFeature(e) {
                 //update text output code
                 webID = e.target.feature.properties.WebCode;
-                updateOutput(webID, url);
+                updateOutput(webID, url, { remove: ['JAG_UNEDITED', 'Glennon'], replace: [['Bibliography:', 'Bibliography: Selected Bibliography']] });
 
                 //update dropdown selection
                 var dropdown = document.getElementById("dropdown-contents");
@@ -468,7 +468,7 @@
             
 
         //setting the initial sidebar text on loading the map
-        updateOutput(webID, url);
+        updateOutput(webID, url, { remove: ['JAG_UNEDITED', 'Glennon'], replace: [['Bibliography:', 'Bibliography: Selected Bibliography']] });
         setTimeout(function () {
             sidebar.show();
         }, 500);
@@ -477,7 +477,7 @@
         function Action() {
             //update description text
             webID = "(0)Introduction";
-            updateOutput(webID, url);
+            updateOutput(webID, url, { remove: ['JAG_UNEDITED', 'Glennon'], replace: [['Bibliography:', 'Bibliography: Selected Bibliography']] });
 
             //update dropdown selection
             var dropdown = document.getElementById("dropdown-contents");
