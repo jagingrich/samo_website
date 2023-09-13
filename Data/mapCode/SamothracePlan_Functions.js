@@ -30,8 +30,8 @@ function textHTMLOutput(text, { size = 16, bold = false, italics = false, hangin
 }
 
 //formatting text output for sidebar
-function splitText(desc, url, text) {
-    var outText;
+function splitText(desc, url, text, remove = [], replace = [null,null]) {
+    
     var startText = text.match(/[^\r\n]+/g);
     var splitText = [];
 
@@ -53,7 +53,13 @@ function splitText(desc, url, text) {
             }
         }
     }
+    console.log(splitText);
+    return splitText;
+}
 
+function outText(desc, url, text, remove = [], replace = [null, null]) {
+    var splitText = splitText();
+    var outText;
     var capcount = 0;
     var defaultSize = 14;
     var defaultPara = false;
@@ -132,7 +138,7 @@ function resetScroll() {
 function updateOutput(desc, url) {
     //pulling text from url, formatting when done, loading to sidebar
     readTxt(desc, url).done(function (response) {
-        description = splitText(desc, url, response);
+        description = outText(desc, url, response);
         sidebar.setContent(description);
     });
     //reset scroll position
