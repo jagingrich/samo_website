@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.css" />
 
     <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothracePlan_Function.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
         html, body {
@@ -28,6 +28,11 @@
     </style>
 </head>
 <body>
+    <div id="overlay">
+        <div id="dropdown-container" class="dropdown-container">
+            <div id="dropdown" class="dropdown"></div>
+        </div>
+    </div>
     <div id="map">
         <div id="sidebar">
             <h1>American Excavations Samothrace</h1>
@@ -35,8 +40,8 @@
                 Interactive Map Plan
             </div>
         </div>
-        <div id="dropdown" class="dropdown"></div>
     </div>
+    
 
     <script>// initialize the map
 
@@ -64,6 +69,7 @@
 
         //options for dropdown
         var dropdownDefault = '<option value="(0)Introduction" disabled selected hidden>Select Monument</option>';
+        var dropdownAll = '<option value="(0)Introduction">About: Interactive Plan</option>';
         var dropdownOptions;
 
         var state = 0;
@@ -79,7 +85,7 @@
 
         function roundWidth() {
             const q = window.innerWidth;
-            return q < 767 ? [700, 767]:
+            return q < 767 ? [q - 75, 767]:
                    q < 991 ? [330, 405]:
                    q < 1199 ? [415, 490]:
                    q < 1349 ? [485, 560]:
@@ -294,15 +300,16 @@
                     var content = this._contentContainer;
 
                     // Attach dropdown container to controls container
-                    var controlContainer = map._controlContainer;
+                    //var controlContainer = map._controlContainer;
+                    var controlContainer = document.getElementById("dropdown-container");
                     controlContainer.insertBefore(container, controlContainer.firstChild);
-
+                    
                     this._map = map;
 
                     var dropdown = L.DomUtil.create('select', 'dropdown-contents', content);
                     L.DomEvent.disableClickPropagation(dropdown);
 
-                    dropdown.innerHTML = dropdownDefault + dropdownOptions;
+                    dropdown.innerHTML = dropdownDefault + dropdownAll + dropdownOptions;
 
                     dropdown.addEventListener('change', onSelect);
                     dropdown.id = "dropdown-contents";
