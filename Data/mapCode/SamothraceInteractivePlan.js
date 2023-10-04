@@ -1,3 +1,48 @@
+//function for unique features from JSON input
+function uniqueFeatures(layers, id, sort = null, sortType = 'Number') {
+    var feats = [];
+    var ids = [];
+    layers.forEach(function (l) {
+        l.features.forEach(function (f) {
+            if (!ids.includes(f.properties[id])) {
+                feats.push(f);
+                ids.push(f.properties[id])
+            }
+        });
+    });
+    if (sort != null) {
+        function fixSortKey(input) {
+            switch (sortType) {
+                case 'Number':
+                    var out = input;
+                    out = out.split("-")[0];
+                    out = out.replace("a", ".2");
+                    out = out.replace("b", ".5");
+                    return Number(out);
+                case 'String':
+                    return String(input);
+                default:
+                    return input;
+            }
+        }
+        feats.sort(function (a, b) {
+            var keyA = fixSortKey(a.properties[sort]);
+            var keyB = fixSortKey(b.properties[sort]);
+            if (keyA < keyB) return -1;
+            if (keyA > keyB) return 1;
+            return 0;
+        });
+    }
+    return feats;
+}
+
+//generating dropdown menu options from JSON inputs
+function dropdownOptions(inputs, value, text) {
+    var optionsOut = [];
+    inputs.forEach((f) => optionsOut.push('<option value="' + f.properties[value] + '">' + f.properties[text] + '</option>'))
+    return optionsOut;
+}
+
 //pulling text description from url
 function readTxt(desc, url) {
     return $.ajax({
