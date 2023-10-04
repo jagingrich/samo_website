@@ -16,7 +16,7 @@
     <script src="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.js"></script>
     <link rel="stylesheet" href="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.css" />
 
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothracePlan_Function.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
@@ -45,64 +45,66 @@
 
     <script>// initialize the map
 
-        function startVars() {
-            //map layer urls
-            const asm_url = "https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.geojson";
-            const rsm_url = "https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.geojson";
+        //map layer urls
+        const tileLayers = ['https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStatePlan_3857/{z}/{x}/{y}.png',
+            'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStateMonuments_3857/{z}/{x}/{y}.png',
+            'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png',
+            'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png']
+        const jsonLayers = ['https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.geojson',
+            'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.geojson']
+        const attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace';
 
-            //setting description creation vars
-            const url = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapDescriptions/";
-            var webID = "(0)Introduction";
-            var description;
-            var dropdownDefault = ['<option value="(0)Introduction" disabled selected hidden>Select Monument</option>',
-                '<option value="(0)Introduction">About: Interactive Plan</option>'];
+        //setting description creation vars
+        const url = "https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapDescriptions/";
+        var webID = "(0)Introduction";
+        var description;
+        var dropdownDefault = ['<option value="(0)Introduction" disabled selected hidden>Select Monument</option>',
+            '<option value="(0)Introduction">About: Interactive Plan</option>'];
+        const remove = ['JAG_UNEDITED', 'Glennon'];
+        const replace = [['Bibliography:', 'Bibliography: Selected Bibliography']];
 
-            //setting description image widths according to window size
-            var width = 'width ="400px"';
-            var w = 0;
+        //setting description image widths according to window size
+        var width = 'width ="400px"';
+        var w = window.innerWidth;
 
-            //map state
-            var state = 0;
-        }
-        startVars();
+        //map state
+        var state = 0;
+        
+        //creating map variable, no layers
+        var map = L.map('map', {
+            center: [40.50065, 25.53026],
+            zoom: 18,
+            fullscreenControl: true,
+            fullscreenControlOptions: {
+                position: 'topleft'
+            }
+        });
 
-        function startMap() {
-            //creating map variable, no layers
-            var map = L.map('map', {
-                center: [40.50065, 25.53026],
-                zoom: 18,
-                fullscreenControl: true,
-                fullscreenControlOptions: {
-                    position: 'topleft'
-                }
-            });
+        //creating map bounds
+        var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879),
+            L.latLng(40.50176, 25.53177));
+        map.flyToBounds(mapbounds);
 
-            //creating map bounds
-            var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879),
-                L.latLng(40.50176, 25.53177));
-            map.flyToBounds(mapbounds);
+        //creating sidebar
+        var sidebar = L.control.sidebar('sidebar', {
+            position: 'right',
+            closeButton: false
+        });
+        map.addControl(sidebar);
 
-            //creating sidebar
-            var sidebar = L.control.sidebar('sidebar', {
-                position: 'right',
-                closeButton: false
-            });
-            map.addControl(sidebar);
-
-            //setting the initial sidebar text on loading the map
-            updateOutput(webID, url, { remove: ['JAG_UNEDITED', 'Glennon'], replace: [['Bibliography:', 'Bibliography: Selected Bibliography']] });
-            setTimeout(function () {
-                sidebar.show();
-            }, 500);
-        }
-        startMap();
-
+        //setting the initial sidebar text on loading the map
+        updateOutput(webID, url, { remove: remove, replace: replace });
+        setTimeout(function () {
+            sidebar.show();
+        }, 500);
+        
+        //listening for width change
         function roundWidth() {
             const q = window.innerWidth;
-            return q < 767 ? [q - 75, 767]:
-                   q < 991 ? [330, 405]:
-                   q < 1199 ? [415, 490]:
-                   q < 1349 ? [485, 560]:
+            return q < 767 ? [q - 75, 767] :
+                   q < 991 ? [330, 405] :
+                   q < 1199 ? [415, 490] :
+                   q < 1349 ? [485, 560] :
                               [525, 600];
         }
 
@@ -114,12 +116,18 @@
                 description = description.replaceAll(oldWidth, width);
                 sidebar.setContent(description);
             }
+            if (w == 767) {
+                document.getElementById("map").style.height = (window.innerHeight - 50) + "px";
+            } else {
+                document.getElementById("map").style.height = "100%";
+            }
         }
         updateWidth();
         ['resize', 'deviceorientation'].forEach(function (e) {
             window.addEventListener(e, updateWidth);
         })
 
+        var jsonInputs = [];
         function readData(url) {
             return $.ajax({
                 url: url,
@@ -127,72 +135,59 @@
                 success: function (response) { }
             });
         }
-
-        $.when(readData(asm_url), readData(rsm_url)).done(function (response1, response2) {
+        jsonLayers.forEach((j) => jsonInputs.push(readData(j)));
+        
+        $.when.apply(null, jsonInputs).done(function (response) {
             //loading JSON data
-            const asm_output = response1[0];
-            const rsm_output = response2[0];
-
-            //monument names for dropdown and webIDs for url pulling
-            function dropdownOptions(defaults, inputLayers) {
-                var mnmts = [];
-                var labels = [];
-                var webIDs = [];
-                var options = [];
-
-                function orgFeatures(feature) {
-                    var label = feature.properties.Label;
-                    var name = '(' + label + ') ' + feature.properties.Name;
-
-                    label = label.split("-")[0];
-                    label = label.replace("a", ".2");
-                    label = label.replace("b", ".5");
-                    var output = [Number(label), name, feature.properties.WebCode];
-                    return output;
+            var jsons = [];
+            $.each(arguments, function (i, row) {
+                var status = row[1], data = row[0];
+                if (status === 'success') {
+                    jsons.push(data);
                 }
-                inputLayers.forEach(function (e) {
-                    for (var m = 0; m < e.features.length; m++) {
-                        mnmts.push(orgFeatures(e.features[m]));
-                    }
+            });
+
+            jsons.forEach(function (j) {
+                j.features.forEach(function (f) {
+                    f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name;
                 });
-
-                mnmts = mnmts.sort(function (a, b) {
-                    return a[0] - b[0];
-                });
-
-                for (var m = 0; m < mnmts.length; m++) {
-                    var sub = mnmts[m];
-                    labels.push(sub[1]);
-                    webIDs.push(sub[2]);
-                }
-
-                function uniq(a) {
-                    return a.filter(function (item, pos, ary) {
-                        return !pos || item != ary[pos - 1];
-                    });
-                }
-                labels = uniq(labels);
-                webIDs = uniq(webIDs);
-
-                //adding to dropdown options
-                for (var k = 0; k < labels.length; k++) {
-                    options.push('<option value="' + webIDs[k] + '">' + labels[k] + '</option>');
-                }
-                return [...defaults, ...options];
-            }
-
+            });
+            
             //adding layers to map
-            function addLayers() {
-                function tileLayer(url, attribution = false) {
-                    if (attribution) {
-                        return L.tileLayer(url + '/{z}/{x}/{y}.png', {
+            function addLayers(tiles, jsons, { groups = [[groupName = null, keyword = null]] }) {
+                //input groups
+                var laygroups = []
+                groups.forEach(function (g) {
+                    var count = 0;
+                    var ls = [];
+                    tiles.forEach(function (t) {
+                        if (t.match(g[1]) != null) {
+                            if (count == 0) {
+                                ls.push(tileLayer(t, true));
+                            } else {
+                                ls.push(tileLayer(t));
+                            }
+                        }
+                    });
+                    jsons.forEach(function (j) {
+                        const name = j.name;
+                        if (name.match(g[1]) != null) {
+                            ls.push(jsonLayer(j));
+                        }
+                    });
+                    laygroups.push({ name: g[0], layers: ls });
+                });
+
+                function tileLayer(url, setAttribution = false) {
+                    if (setAttribution) {
+                        return L.tileLayer(url, {
                             maxZoom: 22,
                             minZoom: 17,
                             tms: true,
-                            attribution: 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace'
+                            attribution: attribution
                         });
                     } else {
-                        return L.tileLayer(url + '/{z}/{x}/{y}.png', {
+                        return L.tileLayer(url, {
                             maxZoom: 22,
                             minZoom: 17,
                             tms: true
@@ -206,27 +201,21 @@
                     });
                 }
 
-                var asp = tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStatePlan_3857', true);
-                var asm = tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStateMonuments_3857');
+                var layerControl = L.control.layers({}, null, { collapsed: false }).addTo(map);
 
-                var rsp = tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857', true);
-                var rsm = tileLayer('https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857');
-
-                var asm_over = jsonLayer(asm_output);
-                var rsm_over = jsonLayer(rsm_output);
-
-                var asp_all = L.layerGroup([asp, asm, asm_over]).addTo(map);
-                var rsp_all = L.layerGroup([rsp, rsm, rsm_over]);
-
-                var baseMaps = {
-                    "Actual State Plan": asp_all
-                };
-
-                var layerControl = L.control.layers(baseMaps, null, { collapsed: false }).addTo(map);
-                var newLayer = layerControl.addBaseLayer(rsp_all, "Restored State Plan");
+                var layCount = 0;
+                laygroups.forEach(function (l) {
+                    if (layCount == 0) {
+                        layerControl.addBaseLayer(L.layerGroup(l.layers).addTo(map), l.name);
+                        layCount++;
+                    }
+                    else {
+                        layerControl.addBaseLayer(L.layerGroup(l.layers), l.name);
+                    }
+                })
             }
-            addLayers();
-
+            addLayers(tileLayers, jsons, { groups: [["Actual State Plan", "ActualState"], ["Restored State Plan", "RestoredState"]] });
+        
             //creating legend
             function addLegend() {
                 var legend = L.control({ position: 'bottomleft' });
@@ -321,7 +310,7 @@
                         var controlContainer = document.getElementById("dropdown-container");
                         controlContainer.insertBefore(container, controlContainer.firstChild);
 
-                        this._map = map;
+                        //this._map = map;
 
                         var dropdown = L.DomUtil.create('select', 'dropdown-contents', content);
                         L.DomEvent.disableClickPropagation(dropdown);
@@ -342,7 +331,7 @@
                     return new L.Control.Dropdown(placeholder);
                 };
             }
-            addDropdown(dropdownOptions(dropdownDefault, [asm_output, rsm_output]));
+            addDropdown([...dropdownDefault, ...dropdownOptions(uniqueFeatures(jsons, 'fullName', 'Label'), 'WebCode', 'fullName')]);
 
             function onSelect() {
                 var dropdown = document.getElementById('dropdown-contents');
@@ -362,7 +351,7 @@
 
 
             //transparent overlay layer style
-            function styleTransparent(feature) {
+            function styleTransparent() {
                 return {
                     fillColor: '#00000000',
                     weight: 0,
@@ -374,9 +363,7 @@
 
             //mouseover highlight behavior and highlight reset
             function highlightFeature(e) {
-                var layer = e.target;
-
-                layer.setStyle({
+                e.target.setStyle({
                     fillColor: '#FFF',
                     weight: 2.5,
                     opacity: 1,
@@ -386,24 +373,19 @@
                 });
 
                 if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-                    layer.bringToFront();
+                    e.target.bringToFront();
                 }
             }
 
             //this is the reset
             function resetHighlight(e) {
-                if (e.target.feature.properties.Plan == "Restored") {
-                    rsm_over.resetStyle(e.target);
-                }
-                if (e.target.feature.properties.Plan == "Actual") {
-                    asm_over.resetStyle(e.target);
-                }
+                e.target.setStyle(styleTransparent());
             }
 
             function updateText(webCode) {
                 //update text output code
                 webID = webCode;
-                updateOutput(webID, url, { remove: ['JAG_UNEDITED', 'Glennon'], replace: [['Bibliography:', 'Bibliography: Selected Bibliography']] });
+                updateOutput(webID, url, { remove: remove, replace: replace });
 
                 //update dropdown
                 var dropdown = document.getElementById("dropdown-contents");
@@ -413,34 +395,19 @@
             function zoomToFeature(webCode) {
                 if (webCode != "(0)Introduction") {
                     //select objects
-                    var asmMatch = asm_output;
-                    var asmMatchSub = "No Match";
-                    for (var j = 0; j < asmMatch.features.length; j++) {
-                        if (asmMatch.features[j].properties.WebCode == webCode) {
-                            asmMatchSub = asmMatch.features[j];
-                        }
-                    }
+                    var selected = [];
+                    jsons.forEach(function (j) {
+                        match = j;
+                        matchSub = "No Match";
+                        j.features.forEach(function (f) {
+                            if (f.properties.WebCode == webCode) {
+                                selected.push(L.geoJSON(f));
+                            }
+                        });
+                    });
 
-                    var rsmMatch = rsm_output;
-                    var rsmMatchSub = "No Match";
-                    for (var j = 0; j < rsmMatch.features.length; j++) {
-                        if (rsmMatch.features[j].properties.WebCode == webCode) {
-                            rsmMatchSub = rsmMatch.features[j];
-                        }
-                    }
-
-                    //zoom to bounds code
-                    var bounds;
-
-                    if (asmMatchSub == "No Match") {
-                        bounds = L.geoJSON(rsmMatchSub).getBounds();
-                    } else if (rsmMatchSub == "No Match") {
-                        bounds = L.geoJSON(asmMatchSub).getBounds();
-                    } else {
-                        var group = L.featureGroup([L.geoJSON(asmMatchSub), L.geoJSON(rsmMatchSub)]);
-                        bounds = group.getBounds();
-                    }
-                    map.flyToBounds(bounds, { paddingBottomRight: [w, 0] });
+                    //zoom to bounds
+                    map.flyToBounds(L.featureGroup(selected).getBounds(), { paddingBottomRight: [w, 0] });
                 }
                 else {
                     //zoom to all map bounds
@@ -471,7 +438,7 @@
                 window.addEventListener(e, (event) => {
                     zoomToFeature(webID);
                 });
-            })
+            });
         });
 
     </script>
