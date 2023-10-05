@@ -16,7 +16,7 @@
     <script src="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.js"></script>
     <link rel="stylesheet" href="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.css" />
 
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
@@ -51,28 +51,24 @@
         var attribution;
         var jsonLayers = [];
         var jsons = [];
+        var allFeatures = [];
+        var dropdownName;
 
         //setting description creation vars
         var url;
         var defaultWebID = '(0)Introduction';
         var webID = defaultWebID;
-        var description;
-        var dropdownCreated = false;
+        var description = "";
         var dropdownDefault = [];
         var remove = [];
         var replace = [];
-
-        //pulling updated initialization vars
-        updateInputs();
-
-        //setting description image widths according to window size
         var width = 'width ="400px"';
         var w = window.innerWidth;
 
-        //map state
-        var state = 0;
+        //pulling updated initialization vars
+        updateInputs();
         
-        //creating map variable, layer control, initial tile layers
+        //creating map variable & layer control
         var map = L.map('map', {
             center: [40.50065, 25.53026],
             zoom: 18,
@@ -82,25 +78,27 @@
             }
         });
         var layerControl = L.control.layers({}, null, { collapsed: false }).addTo(map);
-        var layerGroups = addLayersToGroups(tileLayers, generateLayerGroups({ groups: groups }));
 
         //creating map bounds
         var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879),
             L.latLng(40.50176, 25.53177));
         map.flyToBounds(mapbounds);
 
-        //creating sidebar
+        //adding sidebar to map
         var sidebar = L.control.sidebar('sidebar', {
             position: 'right',
             closeButton: false
         });
         map.addControl(sidebar);
 
-        //creating legend
+        //adding legend to map
         addLegend();
 
         //adding refresh button
         addRefresh();
+
+        //adding dropdown menu
+        addDropdown(dropdownDefault, dropdownName);
         
         //setting the initial sidebar text on loading the map
         updateOutput(webID, url, { remove: remove, replace: replace });
@@ -112,48 +110,23 @@
         updateWidth();
         ['resize', 'deviceorientation'].forEach(function (e) {
             window.addEventListener(e, updateWidth);
-        })
+        });
 
-        if (jsonLayers.length == 0) {
-            addLayers(layerGroups);
-        } else {
-            var jsonInputs = [];
-            jsonLayers.forEach((j) => jsonInputs.push(readData(j)));
-
-            //loading JSON data
-            $.when.apply(null, jsonInputs).done(function (response) {
-                //loading each JSON layer
-                $.each(arguments, function (i, row) {
-                    var status = row[1], data = row[0];
-                    if (status === 'success') {
-                        jsons.push(data);
-                    }
-                });
-                layerGroups = addLayersToGroups(jsons, layerGroups); //add to map
-                addLayers(layerGroups);
-
-                //full name for dropdown display
-                jsons.forEach(function (j) {
-                    j.features.forEach(function (f) {
-                        f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name;
-                    });
-                });
-                //add dropdown to map
-                addDropdown([...dropdownDefault, ...dropdownOptions(uniqueFeatures(jsons, 'fullName', 'Label'), 'WebCode', 'fullName')]);
-                setTimeout(function () {
-                    state = 1;
-                    dropdownCreated = true;
-                    L.control.dropdown('dropdown').addTo(map);
-                }, 250);
-
-                //adjusting zoom on orientation change or screen resize
-                ['resize', 'deviceorientation'].forEach(function (e) {
-                    window.addEventListener(e, (event) => {
-                        zoomToFeature(jsons, webID);
-                    });
-                });
+        //adjusting zoom on orientation change or screen resize
+        ['resize', 'deviceorientation'].forEach(function (e) {
+            window.addEventListener(e, (event) => {
+                if (allFeatures.length > 0) {
+                    zoomToFeature(allFeatures, webID);
+                }
             });
-        }
+        });
+
+        //adding layers to map, updating dropdown
+        addLayerGroups(map, [...tileLayers, ...jsonLayers], generateLayerGroups({ groups: groups }), {
+            updateDropdown: dropdownName,
+            valueID: 'WebCode',
+            textID: 'fullName'
+        });
 
     </script>
 </body>
