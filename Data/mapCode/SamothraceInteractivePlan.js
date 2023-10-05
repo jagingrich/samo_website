@@ -12,6 +12,7 @@ function updateInputs() {
     jsonLayers = ['https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.geojson',
         'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.geojson'];
 
+    dropdownName = 'dropdown-contents';
     //setting description creation vars
     url = 'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapDescriptions/';
     defaultWebID = '(0)Introduction';
@@ -80,18 +81,14 @@ function resetHighlight(e) {
 }
 
 //zoom to feature from given code
-function zoomToFeature(jsons, webCode) {
+function zoomToFeature(features, webCode) {
     if (webCode != defaultWebID) {
         //select objects
         var selected = [];
-        jsons.forEach(function (j) {
-            match = j;
-            matchSub = "No Match";
-            j.features.forEach(function (f) {
-                if (f.properties.WebCode == webCode) {
-                    selected.push(L.geoJSON(f));
-                }
-            });
+        features.forEach(function (f) {
+            if (f.properties.WebCode == webCode) {
+                selected.push(L.geoJSON(f));
+            }
         });
 
         //zoom to bounds
@@ -109,7 +106,7 @@ function selectFeature(webCode) {
     updateText(webCode);
 
     //zoom to selection
-    zoomToFeature(jsons, webCode);
+    zoomToFeature(allFeatures, webCode);
 }
 
 //layer responsiveness
@@ -123,7 +120,7 @@ function onEachFeature(feature, layer) {
 
 //on changing dropdown selection
 function onSelect() {
-    var dropdown = document.getElementById('dropdown-contents');
+    var dropdown = document.getElementById(dropdownName);
     var index = dropdown.options.selectedIndex;
     if (dropdown[index].value == defaultWebID) {
         selectFeature(defaultWebID)
@@ -139,8 +136,8 @@ function updateText(webCode) {
     updateOutput(webID, url, { remove: remove, replace: replace });
 
     //update dropdown
-    if (dropdownCreated) {
-        var dropdown = document.getElementById("dropdown-contents");
+    if (document.getElementById(dropdownName)) {
+        var dropdown = document.getElementById(dropdownName);
         dropdown.value = webID;
     }
 }
@@ -154,21 +151,51 @@ function generateLayerGroups({ groups = [[groupName = null, keyword = null]] }) 
     return laygroups;
 }
 
-//adding layers to layerGroups
-function addLayersToGroups(layers, groups) {
+function addLayerGroups(mapInput, layers, groups, {
+    updateDropdown = null,
+    valueID = '',
+    textID = ''
+}) {
     //type of layers
     var tiles = [];
     var jsons = [];
+    var jsonLayers = [];
     layers.forEach(function (l) {
-        if (typeof (l) == 'string' && l.match('{z}/{x}/{y}.png') != null) {
+        if (l.match('{z}/{x}/{y}.png') != null) {
             tiles.push(l);
         }
-        if (typeof (l) == 'object') {
+        if (l.match('.json') != null) {
             jsons.push(l);
         }
     });
 
-    //input groups
+    //add layerGroups to map
+    function addLayers(mapInput, layerGroups) {
+        var count = 0;
+        groups.forEach(function (g) {
+            if (count == 0) {
+                layerControl.addBaseLayer(g.layers.addTo(mapInput), g.name);
+                g.layers.getLayers().forEach(function (l) {
+                    var keys = Object.keys(l)
+                    if (keys.includes('_layers')) {
+                        Object.values(l['_layers']).forEach((f) => allFeatures.push(f.feature));
+                    }
+                });
+                count++;
+            }
+            else {
+                layerControl.addBaseLayer(g.layers, g.name);
+                g.layers.getLayers().forEach(function (l) {
+                    var keys = Object.keys(l)
+                    if (keys.includes('_layers')) {
+                        Object.values(l['_layers']).forEach((f) => allFeatures.push(f.feature));
+                    }
+                });
+            }
+        })
+    }
+
+    //tile layers to groups
     groups.forEach(function (g) {
         var count = 0;
         tiles.forEach(function (t) {
@@ -180,28 +207,42 @@ function addLayersToGroups(layers, groups) {
                 }
             }
         });
-        jsons.forEach(function (j) {
-            const name = j.name;
-            if (name.match(g.keyword) != null) {
-                jsonLayer(j).addTo(g.layers);
+    });
+
+    if (jsons.length == 0) {
+        addLayers(mapInput, groups);
+    } else {
+        //json layers to groups
+        var jsonInputs = [];
+        jsons.forEach((j) => jsonInputs.push(readData(j)));
+
+        //loading JSON data
+        $.when.apply(null, jsonInputs).done(function (response) {
+            //loading each JSON layer
+            $.each(arguments, function (i, row) {
+                var status = row[1], data = row[0];
+                if (status === 'success') {
+                    var layer = data;
+                    layer.features.forEach((f) => f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name);
+                    jsonLayers.push(layer);
+                }
+            });
+            groups.forEach(function (g) {
+                jsonLayers.forEach(function (j) {
+                    const name = j.name;
+                    if (name.match(g.keyword) != null) {
+                        jsonLayer(j).addTo(g.layers);
+                    }
+                });
+            });
+            addLayers(mapInput, groups);
+
+            if (updateDropdown != null && document.getElementById(updateDropdown)) {
+                var dropdown = document.getElementById(updateDropdown);
+                dropdown.innerHTML += dropdownOptions(uniqueFeatures(allFeatures, 'fullName', 'Label'), 'WebCode', 'fullName');
             }
         });
-    });
-    return groups;
-}
-
-//add layerGroups to map
-function addLayers(groups) {
-    var count = 0;
-    groups.forEach(function (g) {
-        if (count == 0) {
-            layerControl.addBaseLayer(g.layers.addTo(map), g.name);
-            count++;
-        }
-        else {
-            layerControl.addBaseLayer(g.layers, g.name);
-        }
-    })
+    }
 }
 
 //creating legend
@@ -263,12 +304,12 @@ function addRefresh() {
         },
         onRemove: function (map) { },
     });
-    var control = new L.Control.Button()
+    var control = new L.Control.Button();
     control.addTo(map);
 }
 
 //creating monuments dropdown control
-function addDropdown(options) {
+function addDropdown(options, divName) {
     L.Control.Dropdown = L.Control.extend({
         initialize: function (placeholder) {
             // Find content container
@@ -296,9 +337,7 @@ function addDropdown(options) {
             var controlContainer = document.getElementById("dropdown-container");
             controlContainer.insertBefore(container, controlContainer.firstChild);
 
-            //this._map = map;
-
-            var dropdown = L.DomUtil.create('select', 'dropdown-contents', content);
+            var dropdown = L.DomUtil.create('select', divName, content);
             L.DomEvent.disableClickPropagation(dropdown);
 
             //creating dropdown options
@@ -306,16 +345,15 @@ function addDropdown(options) {
 
             //dropdown appearance/settings
             dropdown.addEventListener('change', onSelect);
-            dropdown.id = "dropdown-contents";
+            dropdown.id = divName;
             dropdown.title = "Select Monument Name to Zoom In";
 
             return this;
         },
         onRemove: function (map) { }
     });
-    L.control.dropdown = function (placeholder) {
-        return new L.Control.Dropdown(placeholder);
-    };
+    var dropdown = new L.Control.Dropdown('dropdown');
+    dropdown.addTo(map);
 }
 
 //creating listener for screen width change & update accordingly
@@ -332,10 +370,8 @@ function updateWidth() {
     var oldWidth = width;
     w = roundWidth()[1];
     width = 'width ="' + roundWidth()[0] + 'px"';
-    if (state == 1) {
-        description = description.replaceAll(oldWidth, width);
-        sidebar.setContent(description);
-    }
+    description = description.replaceAll(oldWidth, width);
+    sidebar.setContent(description);
     if (w == 767) {
         setTimeout(function () {
             document.getElementById("map").style.height = (window.innerHeight - 50) + "px";
@@ -358,16 +394,14 @@ function readData(url) {
 }
 
 //function for unique features from JSON input
-function uniqueFeatures(layers, id, sort = null, sortType = 'Number') {
+function uniqueFeatures(features, id, sort = null, sortType = 'Number') {
     var feats = [];
     var ids = [];
-    layers.forEach(function (l) {
-        l.features.forEach(function (f) {
-            if (!ids.includes(f.properties[id])) {
-                feats.push(f);
-                ids.push(f.properties[id])
-            }
-        });
+    features.forEach(function (f) {
+        if (!ids.includes(f.properties[id])) {
+            feats.push(f);
+            ids.push(f.properties[id])
+        }
     });
     if (sort != null) {
         function fixSortKey(input) {
