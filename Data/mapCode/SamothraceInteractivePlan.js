@@ -106,7 +106,7 @@ function selectFeature(webCode) {
     updateText(webCode);
 
     //zoom to selection
-    zoomToFeature(allFeatures, webCode);
+    zoomToFeature(getAllFeatures(null, control), webCode);
 }
 
 //layer responsiveness
@@ -142,20 +142,45 @@ function updateText(webCode) {
     }
 }
 
+//finding all features in map
+function getAllFeatures(inputMap = null, layerControl = null) {
+    var feats = [];
+    if (inputMap != null && typeof (inputMap) == 'object') {
+        Object.values(inputMap._layers).forEach(function (l) {
+            var keys = Object.keys(l);
+            if (keys.includes('feature') && !feats.includes(l.feature)) {
+                feats.push(l.feature)
+            }
+        });
+    }
+    if (layerControl != null && typeof (layerControl) == 'object') {
+        layerControl['_layers'].forEach(function (c) {
+            Object.values(c.layer._layers).forEach(function (l) {
+                var keys = Object.keys(l);
+                if (keys.includes('_layers')) {
+                    Object.values(l['_layers']).forEach(function (f) {
+                        if (!feats.includes(f.feature)) {
+                            feats.push(f.feature)
+                        }
+                    });
+                }
+            });
+        });
+    }
+    return feats;
+}
+
 //layer groups from names and keywords
 function generateLayerGroups({ groups = [[groupName = null, keyword = null]] }) {
     var laygroups = []
     groups.forEach(function (g) {
         laygroups.push({ name: g[0], keyword: g[1], layers: L.layerGroup() });
     });
+    laygroups.push({ name: 'Other', keyword: 'Missing', layers: L.layerGroup() });
     return laygroups;
 }
 
-function addLayerGroups(mapInput, layers, groups, {
-    updateDropdown = null,
-    valueID = '',
-    textID = ''
-}) {
+function addLayerGroups(mapInput, layerControl, layers, groups, functionOnLoad = null) {
     //type of layers
     var tiles = [];
     var jsons = [];
@@ -170,47 +195,42 @@ function addLayerGroups(mapInput, layers, groups, {
     });
 
     //add layerGroups to map
-    function addLayers(mapInput, layerGroups) {
+    function addLayers(mapInput, layerGroups, layerControl) {
         var count = 0;
         groups.forEach(function (g) {
-            if (count == 0) {
-                layerControl.addBaseLayer(g.layers.addTo(mapInput), g.name);
-                g.layers.getLayers().forEach(function (l) {
-                    var keys = Object.keys(l)
-                    if (keys.includes('_layers')) {
-                        Object.values(l['_layers']).forEach((f) => allFeatures.push(f.feature));
-                    }
-                });
-                count++;
+            if (g.name != 'Other') {
+                if (count == 0) {
+                    layerControl.addBaseLayer(g.layers.addTo(mapInput), g.name);
+                    count++;
+                }
+                else {
+                    layerControl.addBaseLayer(g.layers, g.name);
+                }
             }
-            else {
-                layerControl.addBaseLayer(g.layers, g.name);
-                g.layers.getLayers().forEach(function (l) {
-                    var keys = Object.keys(l)
-                    if (keys.includes('_layers')) {
-                        Object.values(l['_layers']).forEach((f) => allFeatures.push(f.feature));
-                    }
-                });
+            if (g.name == 'Other') {
+                g.layers.addTo(mapInput);
             }
         })
     }
 
     //tile layers to groups
-    groups.forEach(function (g) {
-        var count = 0;
-        tiles.forEach(function (t) {
-            if (t.match(g.keyword) != null) {
-                if (count == 0) {
+    tiles.forEach(function (t) {
+        var match = false;
+        groups.forEach(function (g) {
+            if (g.name != 'Other') {
+                if (t.match(g.keyword) != null) {
                     tileLayer(t, true).addTo(g.layers);
-                } else {
-                    tileLayer(t).addTo(g.layers);
+                    match = true;
                 }
             }
         });
+        if (!match) {
+            tileLayer(t, true).addTo(groups[groups.findIndex((element) => element.name == "Other")].layers)
+        }
     });
 
     if (jsons.length == 0) {
-        addLayers(mapInput, groups);
+        addLayers(mapInput, groups, layerControl);
     } else {
         //json layers to groups
         var jsonInputs = [];
@@ -227,19 +247,25 @@ function addLayerGroups(mapInput, layers, groups, {
                     jsonLayers.push(layer);
                 }
             });
-            groups.forEach(function (g) {
-                jsonLayers.forEach(function (j) {
-                    const name = j.name;
-                    if (name.match(g.keyword) != null) {
-                        jsonLayer(j).addTo(g.layers);
+            //adding JSON layers to groups
+            jsonLayers.forEach(function (j) {
+                var match = false;
+                groups.forEach(function (g) {
+                    if (g.name != 'Other') {
+                        const name = j.name;
+                        if (name.match(g.keyword) != null) {
+                            jsonLayer(j).addTo(g.layers);
+                        }
                     }
                 });
+                if (!match) {
+                    jsonLayer(j).addTo(groups[groups.findIndex((element) => element.name == "Other")].layers)
+                }
             });
-            addLayers(mapInput, groups);
+            addLayers(mapInput, groups, layerControl);
 
-            if (updateDropdown != null && document.getElementById(updateDropdown)) {
-                var dropdown = document.getElementById(updateDropdown);
-                dropdown.innerHTML += dropdownOptions(uniqueFeatures(allFeatures, 'fullName', 'Label'), 'WebCode', 'fullName');
+            if (functionOnLoad != null && typeof (functionOnLoad) == 'function') {
+                functionOnLoad();
             }
         });
     }
