@@ -16,7 +16,7 @@
     <script src="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.js"></script>
     <link rel="stylesheet" href="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.css" />
 
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothracePlan_Functions.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
@@ -77,11 +77,10 @@
                 position: 'topleft'
             }
         });
-        var layerControl = L.control.layers({}, null, { collapsed: false }).addTo(map);
-
+        var control = L.control.layers({}, null, { collapsed: false }).addTo(map);
+        
         //creating map bounds
-        var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879),
-            L.latLng(40.50176, 25.53177));
+        var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879), L.latLng(40.50176, 25.53177));
         map.flyToBounds(mapbounds);
 
         //adding sidebar to map
@@ -90,16 +89,7 @@
             closeButton: false
         });
         map.addControl(sidebar);
-
-        //adding legend to map
-        addLegend();
-
-        //adding refresh button
-        addRefresh();
-
-        //adding dropdown menu
-        addDropdown(dropdownDefault, dropdownName);
-        
+                
         //setting the initial sidebar text on loading the map
         updateOutput(webID, url, { remove: remove, replace: replace });
         setTimeout(function () {
@@ -108,12 +98,12 @@
         
         //listening for width change
         updateWidth();
-        ['resize', 'deviceorientation'].forEach(function (e) {
+        ['resize', 'deviceorientation', 'focus'].forEach(function (e) {
             window.addEventListener(e, updateWidth);
         });
 
         //adjusting zoom on orientation change or screen resize
-        ['resize', 'deviceorientation'].forEach(function (e) {
+        ['resize', 'deviceorientation', 'focus'].forEach(function (e) {
             window.addEventListener(e, (event) => {
                 if (allFeatures.length > 0) {
                     zoomToFeature(allFeatures, webID);
@@ -122,11 +112,18 @@
         });
 
         //adding layers to map, updating dropdown
-        addLayerGroups(map, [...tileLayers, ...jsonLayers], generateLayerGroups({ groups: groups }), {
-            updateDropdown: dropdownName,
-            valueID: 'WebCode',
-            textID: 'fullName'
-        });
+        addLayerGroups(
+            mapInput = map,
+            layerControl = control,
+            layers = [...tileLayers, ...jsonLayers],
+            groups = generateLayerGroups({ groups: groups }),
+            functionOnLoad = function () {
+                addDropdown( //adding dropdown to map
+                    options = [...dropdownDefault, ...dropdownOptions(uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label'), 'WebCode', 'fullName')],
+                    divName = dropdownName)
+                addLegend(); //adding legend to map
+                addRefresh(); //adding refresh button
+            });
 
     </script>
 </body>
