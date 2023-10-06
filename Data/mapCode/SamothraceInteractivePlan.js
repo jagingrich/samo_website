@@ -22,6 +22,23 @@ function updateInputs() {
     replace = [['Bibliography:', 'Bibliography: Selected Bibliography']];
 }
 
+//creating divs for parts of interactive plan in map, overlay divs
+function divCreate(divName, divContainer, type = 'div') {
+    L.Control.newDiv = L.Control.extend({
+        addTo: function (placeholder) {
+            // Attach new div to input container
+            var container = L.DomUtil.get(placeholder);
+            var newDiv = L.DomUtil.create(type, divName, container);
+            newDiv.id = divName;
+
+            return this;
+        },
+        onRemove: function (placeholder) { }
+    });
+    var dropdown = new L.Control.newDiv();
+    dropdown.addTo(divContainer);
+}
+
 //formatting for tile layers
 function tileLayer(url, setAttribution = false) {
     if (setAttribution) {
@@ -255,6 +272,7 @@ function addLayerGroups(mapInput, layerControl, layers, groups, functionOnLoad =
                         const name = j.name;
                         if (name.match(g.keyword) != null) {
                             jsonLayer(j).addTo(g.layers);
+                            match = true;
                         }
                     }
                 });
@@ -337,33 +355,10 @@ function addRefresh() {
 //creating monuments dropdown control
 function addDropdown(options, divName) {
     L.Control.Dropdown = L.Control.extend({
-        initialize: function (placeholder) {
-            // Find content container
-            var content = this._contentContainer = L.DomUtil.get(placeholder);
-
-            // Remove the content container from its original parent        
-            if (content.parentNode != undefined) {
-                content.parentNode.removeChild(content);
-            }
-
-            // Create dropdown container
-            var container = this._container =
-                L.DomUtil.create('div', 'leaflet-dropdown');
-
-            // Style and attach content container
-            L.DomUtil.addClass(content, 'leaflet-control');
-            container.appendChild(content);
-
-        },
-        addTo: function (map) {
-            var container = this._container;
-            var content = this._contentContainer;
-
+        addTo: function (dropdownContainer) {
             // Attach dropdown container to overlay/dropdown container
-            var controlContainer = document.getElementById("dropdown-container");
-            controlContainer.insertBefore(container, controlContainer.firstChild);
-
-            var dropdown = L.DomUtil.create('select', divName, content);
+            var container = L.DomUtil.get(dropdownContainer);
+            var dropdown = L.DomUtil.create('select', divName, container);
             L.DomEvent.disableClickPropagation(dropdown);
 
             //creating dropdown options
@@ -376,10 +371,10 @@ function addDropdown(options, divName) {
 
             return this;
         },
-        onRemove: function (map) { }
+        onRemove: function (dropdownContainer) { }
     });
-    var dropdown = new L.Control.Dropdown('dropdown');
-    dropdown.addTo(map);
+    var dropdown = new L.Control.Dropdown();
+    dropdown.addTo('dropdown');
 }
 
 //creating listener for screen width change & update accordingly
