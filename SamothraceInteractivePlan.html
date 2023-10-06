@@ -16,8 +16,8 @@
     <script src="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.js"></script>
     <link rel="stylesheet" href="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.css" />
 
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothracePlan_Functions.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan.css" />
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
         html, body {
@@ -28,20 +28,8 @@
     </style>
 </head>
 <body>
-    <div id="overlay">
-        <div id="dropdown-container" class="dropdown-container">
-            <div id="dropdown" class="dropdown"></div>
-        </div>
-    </div>
-    <div id="map">
-        <div id="sidebar">
-            <h1>American Excavations Samothrace</h1>
-            <div id="sidebar-content">
-                Interactive Map Plan
-            </div>
-        </div>
-    </div>
-    
+    <div id="overlay"></div>
+    <div id="map"></div>
 
     <script>// initialize the map
 
@@ -67,6 +55,12 @@
 
         //pulling updated initialization vars
         updateInputs();
+
+        //creating divs for parts of interactive plan in map, overlay divs
+        divCreate('dropdown', 'overlay');
+        divCreate('sidebar', 'map');
+        divCreate('sidebar-content', 'sidebar');
+
         
         //creating map variable & layer control
         var map = L.map('map', {
