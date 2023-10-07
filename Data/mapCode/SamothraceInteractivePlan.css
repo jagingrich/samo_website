@@ -126,7 +126,6 @@
 @media (max-width: 767px) {
     #map {
         background: white;
-        top: 50px;
     }
 
     .leaflet-sidebar {
@@ -161,9 +160,12 @@
     }
 
     #dropdown-contents {
-        width: auto;
-        left: 10px;
+        width: 90%;
+        left: 5%;
         z-index: 2200;
+    }
+    #sidebar-content {
+        padding-top: 50px;
     }
 }
 
