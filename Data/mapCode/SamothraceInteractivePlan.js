@@ -23,13 +23,18 @@ function updateInputs() {
 }
 
 //creating divs for parts of interactive plan in map, overlay divs
-function divCreate(divName, divContainer, type = 'div') {
+function divCreate(divName, divContainer, type = 'div', functionOnCreate = null) {
     L.Control.newDiv = L.Control.extend({
         addTo: function (placeholder) {
             // Attach new div to input container
             var container = L.DomUtil.get(placeholder);
             var newDiv = L.DomUtil.create(type, divName, container);
+            L.DomEvent.disableClickPropagation(newDiv);
             newDiv.id = divName;
+
+            if (functionOnCreate != null && typeof (functionOnCreate) == 'function') {
+                functionOnCreate(newDiv);
+            }           
 
             return this;
         },
@@ -352,31 +357,6 @@ function addRefresh() {
     control.addTo(map);
 }
 
-//creating monuments dropdown control
-function addDropdown(options, divName) {
-    L.Control.Dropdown = L.Control.extend({
-        addTo: function (dropdownContainer) {
-            // Attach dropdown container to overlay/dropdown container
-            var container = L.DomUtil.get(dropdownContainer);
-            var dropdown = L.DomUtil.create('select', divName, container);
-            L.DomEvent.disableClickPropagation(dropdown);
-
-            //creating dropdown options
-            options.forEach((option) => dropdown.innerHTML += option);
-
-            //dropdown appearance/settings
-            dropdown.addEventListener('change', onSelect);
-            dropdown.id = divName;
-            dropdown.title = "Select Monument Name to Zoom In";
-
-            return this;
-        },
-        onRemove: function (dropdownContainer) { }
-    });
-    var dropdown = new L.Control.Dropdown();
-    dropdown.addTo('dropdown');
-}
-
 //creating listener for screen width change & update accordingly
 function roundWidth() {
     const q = window.innerWidth;
@@ -392,17 +372,7 @@ function updateWidth() {
     w = roundWidth()[1];
     width = 'width ="' + roundWidth()[0] + 'px"';
     description = description.replaceAll(oldWidth, width);
-    sidebar.setContent(description);
-    if (w == 767) {
-        setTimeout(function () {
-            document.getElementById("map").style.height = (window.innerHeight - 50) + "px";
-        }, 500)
-
-    } else {
-        setTimeout(function () {
-            document.getElementById("map").style.height = "100%";
-        }, 500)
-    }
+    L.DomUtil.get('sidebar-content').innerHTML = description;
 }
 
 //ajax request for JSON data
@@ -622,7 +592,7 @@ function updateOutput(desc, url, { remove = [null], replace = [[keyword = null, 
     //pulling text from url, formatting when done, loading to sidebar
     readTxt(desc, url).done(function (response) {
         description = outText(desc, url, response, { remove: remove, replace: replace });
-        sidebar.setContent(description);
+        L.DomUtil.get('sidebar-content').innerHTML = description;
     });
     //reset scroll position
     setTimeout(function () {
