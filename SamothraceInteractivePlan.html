@@ -16,8 +16,8 @@
     <script src="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.js"></script>
     <link rel="stylesheet" href="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.css" />
 
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan.css" />
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan_Functions.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan_Styling.css" />
 
     <style>
         html, body {
@@ -39,7 +39,7 @@
         var attribution;
         var jsonLayers = [];
         var jsons = [];
-        var allFeatures = [];
+        //var allFeatures = [];
         var dropdownName;
 
         //setting description creation vars
@@ -57,10 +57,9 @@
         updateInputs();
 
         //creating divs for parts of interactive plan in map, overlay divs
-        divCreate('dropdown', 'overlay');
         divCreate('sidebar', 'map');
+        divCreate('dropdown', 'map');
         divCreate('sidebar-content', 'sidebar');
-
         
         //creating map variable & layer control
         var map = L.map('map', {
@@ -99,6 +98,7 @@
         //adjusting zoom on orientation change or screen resize
         ['resize', 'deviceorientation', 'focus'].forEach(function (e) {
             window.addEventListener(e, (event) => {
+                var allFeatures = getAllFeatures(null, control);
                 if (allFeatures.length > 0) {
                     zoomToFeature(allFeatures, webID);
                 }
@@ -112,9 +112,17 @@
             layers = [...tileLayers, ...jsonLayers],
             groups = generateLayerGroups({ groups: groups }),
             functionOnLoad = function () {
-                addDropdown( //adding dropdown to map
-                    options = [...dropdownDefault, ...dropdownOptions(uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label'), 'WebCode', 'fullName')],
-                    divName = dropdownName)
+                divCreate(divName = dropdownName, //adding dropdown to map
+                    divContainer = 'dropdown',
+                    type = 'select',
+                    functionOnCreate = function (newDiv) {
+                        //creating dropdown
+                        options = [...dropdownDefault, ...dropdownOptions(uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label'), 'WebCode', 'fullName')];
+                        options.forEach((option) => newDiv.innerHTML += option);
+                        //dropdown appearance/settings
+                        newDiv.addEventListener('change', onSelect);
+                        newDiv.title = "Select Monument Name to Zoom In";
+                    });
                 addLegend(); //adding legend to map
                 addRefresh(); //adding refresh button
             });
