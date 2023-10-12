@@ -82,10 +82,12 @@
         //adjusting zoom on orientation change or screen resize
         ['deviceorientation', 'focus'].forEach(function (e) {
             window.addEventListener(e, (event) => {
-                var allFeatures = getAllFeatures(null, control);
-                if (allFeatures.length > 0) {
-                    zoomToFeature(allFeatures, webID);
-                }
+                setTimeout(function () {
+                    var allFeatures = getAllFeatures(null, control);
+                    if (allFeatures.length > 0) {
+                        zoomToFeature(allFeatures, webID);
+                    }
+                }, 500);
             });
         });
 
