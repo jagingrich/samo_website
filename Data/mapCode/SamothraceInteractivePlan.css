@@ -25,6 +25,11 @@
     cursor: pointer;
 }
 
+.recenter-icon {
+    background-image: url(https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapIcons/map-Recenter.png);
+    background-size: 26px 26px;
+}
+
 .leaflet-control-layers-scrollbar {
     scroll-behavior: smooth;
 }
@@ -124,10 +129,6 @@
 }
 
 @media (max-width: 767px) {
-    #map {
-        background: white;
-    }
-
     .leaflet-sidebar {
         width: 100%;
         padding: 0;
