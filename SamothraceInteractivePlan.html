@@ -2,6 +2,8 @@
 <html>
 <head>
     <title>AES Interactive Site Plan</title>
+    <link rel="icon" href="https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapIcons/SamoWebsite_Icon.png"
+          type="image/x-icon">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
           crossorigin="" />
@@ -11,13 +13,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
 
-    <script src="https://rawgit.com/Turbo87/leaflet-sidebar/master/src/L.Control.Sidebar.js"></script>
-
-    <script src="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.js"></script>
-    <link rel="stylesheet" href="https://rawgit.com/brunob/leaflet.fullscreen/master/Control.FullScreen.css" />
-
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan_Functions.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan_Styling.css" />
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan_Styling.css" />
 
     <style>
         html, body {
@@ -29,6 +26,8 @@
 </head>
 <body>
     <div id="map"></div>
+    <div id="sidebar"></div>
+    
 
     <script>// initialize the map
 
@@ -38,7 +37,6 @@
         var attribution;
         var jsonLayers = [];
         var jsons = [];
-        //var allFeatures = [];
         var dropdownName;
 
         //setting description creation vars
@@ -55,47 +53,34 @@
         //pulling updated initialization vars
         updateInputs();
 
-        //creating divs for parts of interactive plan in map, overlay divs
-        divCreate('sidebar', 'map');
+        //creating divs for parts of interactive plan
         divCreate('dropdown', 'map');
         divCreate('sidebar-content', 'sidebar');
-        
+
         //creating map variable & layer control
         var map = L.map('map', {
             center: [40.50065, 25.53026],
-            zoom: 18,
-            fullscreenControl: true,
-            fullscreenControlOptions: {
-                position: 'topleft'
-            }
+            zoom: 18
         });
         var control = L.control.layers({}, null, { collapsed: false }).addTo(map);
-        
+
         //creating map bounds
         var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879), L.latLng(40.50176, 25.53177));
         map.flyToBounds(mapbounds);
 
-        //adding sidebar to map
-        var sidebar = L.control.sidebar('sidebar', {
-            position: 'right',
-            closeButton: false
-        });
-        map.addControl(sidebar);
-                
+        addRecenterControl();
+
         //setting the initial sidebar text on loading the map
         updateOutput(webID, url, { remove: remove, replace: replace });
-        setTimeout(function () {
-            sidebar.show();
-        }, 500);
-        
+
         //listening for width change
         updateWidth();
-        ['resize', 'deviceorientation', 'focus'].forEach(function (e) {
+        ['resize', 'focus'].forEach(function (e) {
             window.addEventListener(e, updateWidth);
         });
 
         //adjusting zoom on orientation change or screen resize
-        ['resize', 'deviceorientation', 'focus'].forEach(function (e) {
+        ['deviceorientation', 'focus'].forEach(function (e) {
             window.addEventListener(e, (event) => {
                 var allFeatures = getAllFeatures(null, control);
                 if (allFeatures.length > 0) {
@@ -124,8 +109,7 @@
                     });
                 addLegend(); //adding legend to map
                 addRefresh(); //adding refresh button
-            });
-
-    </script>
+                updateWidth();
+            });</script>
 </body>
 </html>
