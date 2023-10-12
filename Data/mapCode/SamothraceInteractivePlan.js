@@ -114,11 +114,11 @@ function zoomToFeature(features, webCode) {
         });
 
         //zoom to bounds
-        map.flyToBounds(L.featureGroup(selected).getBounds(), { paddingBottomRight: [w, 0] });
+        map.flyToBounds(L.featureGroup(selected).getBounds());
     }
     else {
         //zoom to all map bounds
-        map.flyToBounds(mapbounds, { paddingBottomRight: [w, 0] });
+        map.flyToBounds(mapbounds);
     }
 }
 
@@ -414,19 +414,22 @@ function addRecenterControl() {
 //creating listener for screen width change & update accordingly
 function roundWidth() {
     const q = window.innerWidth;
-    return q < 767 ? [q - 75, 767] :
-        q < 991 ? [330, 405] :
-            q < 1199 ? [415, 490] :
-                q < 1349 ? [485, 560] :
-                    [525, 600];
+    const tops = Array.from(document.getElementsByClassName('leaflet-top'));
+    var topWidth = 10 * tops.length;
+    tops.forEach((f) => topWidth += f.clientWidth);
+    return q < 767 ? [q, q - 40, q - 40] :
+        [q, q * 0.45 - 40, q * 0.55 - topWidth];
 }
 
 function updateWidth() {
     var oldWidth = width;
-    w = roundWidth()[1];
-    width = 'width ="' + roundWidth()[0] + 'px"';
+    var w = roundWidth();
+    width = 'width ="' + w[1] + 'px"';
     description = description.replaceAll(oldWidth, width);
     L.DomUtil.get('sidebar-content').innerHTML = description;
+    if (document.getElementById('dropdown-contents')) {
+        document.getElementById('dropdown-contents').style.width = w[2] + 'px';
+    }
 }
 
 //ajax request for JSON data
