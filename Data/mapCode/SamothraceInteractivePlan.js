@@ -40,8 +40,8 @@ function divCreate(divName, divContainer, type = 'div', functionOnCreate = null)
         },
         onRemove: function (placeholder) { }
     });
-    var dropdown = new L.Control.newDiv();
-    dropdown.addTo(divContainer);
+    var outDiv = new L.Control.newDiv();
+    outDiv.addTo(divContainer);
 }
 
 //formatting for tile layers
@@ -355,6 +355,60 @@ function addRefresh() {
     });
     var control = new L.Control.Button();
     control.addTo(map);
+}
+
+//creating recenter button control
+function addRecenterControl() {
+    leaflet.Control.Recenter = leaflet.Control.extend({
+        options: {
+            position: 'topleft',
+            title: 'Zoom to Selected Monument'
+        },
+        _createButton: function (title, className, content, container, context) {
+            this.link = leaflet.DomUtil.create('a', className, container);
+            this.link.href = '#';
+            this.link.title = title;
+            this.link.innerHTML = content;
+
+            this.link.setAttribute('role', 'button');
+            this.link.setAttribute('aria-label', title);
+
+            L.DomEvent.disableClickPropagation(container);
+
+            L.DomEvent.on(this.link, 'click', function () {
+                var webCode;
+                var dropdown = document.getElementById(dropdownName);
+                var index = dropdown.options.selectedIndex;
+                if (dropdown[index].value == defaultWebID) {
+                    webCode = defaultWebID;
+                } else {
+                    webCode = dropdown[index].value;
+                }
+                zoomToFeature(getAllFeatures(null, control), webCode);
+            });
+
+            return this.link;
+        },
+
+        onAdd: function (map) {
+            var className = 'leaflet-control-zoom-selection', container, content = '';
+
+            container = map.zoomControl._container;
+
+            if (this.options.content) {
+                content = this.options.content;
+            } else {
+                className += ' recenter-icon';
+            }
+
+            this._createButton(this.options.title, className, content, container, this);
+            this._map.recenter = this;
+
+            return container;
+        }
+    })
+    var zoomTo = new L.Control.Recenter();
+    zoomTo.addTo(map);
 }
 
 //creating listener for screen width change & update accordingly
