@@ -2,10 +2,12 @@
     height: 100%;
     background-color: #808080;
     width: 55%;
+    float: left;
 }
 #sidebar {
     width: 45%;
     height: 100%;
+    margin-left: 55%;
     right: 0;
     position: absolute;
     background-color: white;
