@@ -13,8 +13,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan_Styling.css" />
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan_Functions.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan_Styling.css" />
 
     <style>
         html, body {
@@ -40,6 +40,7 @@
         var dropdownName;
 
         //setting description creation vars
+        var sidebarText = 'sidebar-content';
         var url;
         var defaultWebID = '(0)Introduction';
         var webID = defaultWebID;
@@ -55,7 +56,7 @@
 
         //creating divs for parts of interactive plan
         divCreate('dropdown', 'map');
-        divCreate('sidebar-content', 'sidebar');
+        divCreate(sidebarText, 'sidebar');
 
         //creating map variable & layer control
         var map = L.map('map', {
@@ -71,7 +72,7 @@
         addRecenterControl();
 
         //setting the initial sidebar text on loading the map
-        updateOutput(webID, url, { remove: remove, replace: replace });
+        updateOutput(sidebarText, webID, url, { remove: remove, replace: replace });
 
         //listening for width change
         updateWidth();
@@ -80,15 +81,13 @@
         });
 
         //adjusting zoom on orientation change or screen resize
-        ['deviceorientation', 'focus'].forEach(function (e) {
-            window.addEventListener(e, (event) => {
-                setTimeout(function () {
-                    var allFeatures = getAllFeatures(null, control);
-                    if (allFeatures.length > 0) {
-                        zoomToFeature(allFeatures, webID);
-                    }
-                }, 500);
-            });
+        window.addEventListener('deviceorientation', (event) => {
+            setTimeout(function () {
+                var allFeatures = getAllFeatures(null, control);
+                if (allFeatures.length > 0) {
+                    zoomToFeature(allFeatures, webID);
+                }
+            }, 500);
         });
 
         //adding layers to map, updating dropdown
