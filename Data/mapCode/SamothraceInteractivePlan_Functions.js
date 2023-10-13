@@ -40,8 +40,8 @@ function divCreate(divName, divContainer, type = 'div', functionOnCreate = null)
         },
         onRemove: function (placeholder) { }
     });
-    var dropdown = new L.Control.newDiv();
-    dropdown.addTo(divContainer);
+    var outDiv = new L.Control.newDiv();
+    outDiv.addTo(divContainer);
 }
 
 //formatting for tile layers
@@ -114,11 +114,11 @@ function zoomToFeature(features, webCode) {
         });
 
         //zoom to bounds
-        map.flyToBounds(L.featureGroup(selected).getBounds(), { paddingBottomRight: [w, 0] });
+        map.flyToBounds(L.featureGroup(selected).getBounds());
     }
     else {
         //zoom to all map bounds
-        map.flyToBounds(mapbounds, { paddingBottomRight: [w, 0] });
+        map.flyToBounds(mapbounds);
     }
 }
 
@@ -155,7 +155,7 @@ function onSelect() {
 function updateText(webCode) {
     //update text output code
     webID = webCode;
-    updateOutput(webID, url, { remove: remove, replace: replace });
+    updateOutput(sidebarText, webID, url, { remove: remove, replace: replace });
 
     //update dropdown
     if (document.getElementById(dropdownName)) {
@@ -357,22 +357,86 @@ function addRefresh() {
     control.addTo(map);
 }
 
+//creating recenter button control
+function addRecenterControl() {
+    leaflet.Control.Recenter = leaflet.Control.extend({
+        options: {
+            position: 'topleft',
+            title: 'Zoom to Selected Monument'
+        },
+        _createButton: function (title, className, content, container, context) {
+            this.link = leaflet.DomUtil.create('a', className, container);
+            this.link.href = '#';
+            this.link.title = title;
+            this.link.innerHTML = content;
+
+            this.link.setAttribute('role', 'button');
+            this.link.setAttribute('aria-label', title);
+
+            L.DomEvent.disableClickPropagation(container);
+
+            L.DomEvent.on(this.link, 'click', function () {
+                var webCode;
+                var dropdown = document.getElementById(dropdownName);
+                var index = dropdown.options.selectedIndex;
+                if (dropdown[index].value == defaultWebID) {
+                    webCode = defaultWebID;
+                } else {
+                    webCode = dropdown[index].value;
+                }
+                zoomToFeature(getAllFeatures(null, control), webCode);
+            });
+
+            return this.link;
+        },
+
+        onAdd: function (map) {
+            var className = 'leaflet-control-zoom-selection', container, content = '';
+
+            container = map.zoomControl._container;
+
+            if (this.options.content) {
+                content = this.options.content;
+            } else {
+                className += ' recenter-icon';
+            }
+
+            this._createButton(this.options.title, className, content, container, this);
+            this._map.recenter = this;
+
+            return container;
+        }
+    })
+    var zoomTo = new L.Control.Recenter();
+    zoomTo.addTo(map);
+}
+
 //creating listener for screen width change & update accordingly
 function roundWidth() {
     const q = window.innerWidth;
-    return q < 767 ? [q - 75, 767] :
-        q < 991 ? [330, 405] :
-            q < 1199 ? [415, 490] :
-                q < 1349 ? [485, 560] :
-                    [525, 600];
+    const tops = Array.from(document.getElementsByClassName('leaflet-top'));
+    var topWidth = 10 * tops.length;
+    tops.forEach((f) => topWidth += f.clientWidth);
+    return q < 750 ? [q + 'px', (q - 40) + 'px', q + 'px', (q - 40) + 'px'] :
+           q < 900 ? [405 + 'px', 365 + 'px', (q - 405) + 'px', (q - 405 - topWidth) + 'px'] :
+           q < 1050 ? [475 + 'px', 435 + 'px', (q - 475) + 'px', (q - 475 - topWidth) + 'px'] :
+           q < 1200 ? [540 + 'px', 500 + 'px', (q - 540) + 'px', (q - 540 - topWidth) + 'px'] :
+           q < 1350 ? [600 + 'px', 560 + 'px', (q - 600) + 'px', (q - 600 - topWidth) + 'px'] :
+                        [655 + 'px', 615 + 'px', (q - 655) + 'px', (q - 655 - topWidth) + 'px'];
 }
 
 function updateWidth() {
     var oldWidth = width;
-    w = roundWidth()[1];
-    width = 'width ="' + roundWidth()[0] + 'px"';
-    description = description.replaceAll(oldWidth, width);
-    L.DomUtil.get('sidebar-content').innerHTML = description;
+    var w = roundWidth();
+    width = 'width="' + w[1] + '"';
+    document.getElementById('map').style.width = w[2];
+    document.getElementById('sidebar').style.width = w[0];
+    if (document.getElementById(sidebarText)) {
+        document.getElementById(sidebarText).innerHTML = document.getElementById(sidebarText).innerHTML.replaceAll(oldWidth, width);
+    }
+    if (document.getElementById('dropdown-contents')) {
+        document.getElementById('dropdown-contents').style.width = w[3];
+    }
 }
 
 //ajax request for JSON data
@@ -588,11 +652,12 @@ function resetScroll() {
 }
 
 //packaged function for updating sidebar output
-function updateOutput(desc, url, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
+function updateOutput(updateDiv, desc, url, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
     //pulling text from url, formatting when done, loading to sidebar
+    textDiv = L.DomUtil.get(updateDiv);
     readTxt(desc, url).done(function (response) {
-        description = outText(desc, url, response, { remove: remove, replace: replace });
-        L.DomUtil.get('sidebar-content').innerHTML = description;
+        //description = outText(desc, url, response, { remove: remove, replace: replace });
+        textDiv.innerHTML = outText(desc, url, response, { remove: remove, replace: replace });
     });
     //reset scroll position
     setTimeout(function () {
