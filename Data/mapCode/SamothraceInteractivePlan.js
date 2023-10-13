@@ -155,7 +155,7 @@ function onSelect() {
 function updateText(webCode) {
     //update text output code
     webID = webCode;
-    updateOutput(webID, url, { remove: remove, replace: replace });
+    updateOutput(sidebarText, webID, url, { remove: remove, replace: replace });
 
     //update dropdown
     if (document.getElementById(dropdownName)) {
@@ -417,18 +417,25 @@ function roundWidth() {
     const tops = Array.from(document.getElementsByClassName('leaflet-top'));
     var topWidth = 10 * tops.length;
     tops.forEach((f) => topWidth += f.clientWidth);
-    return q < 767 ? [q, q - 40, q - 40] :
-        [q, q * 0.45 - 40, q * 0.55 - topWidth];
+    return q < 750 ? [q + 'px', (q - 40) + 'px', q + 'px', (q - 40) + 'px'] :
+           q < 900 ? [405 + 'px', 365 + 'px', (q - 405) + 'px', (q - 405 - topWidth) + 'px'] :
+           q < 1050 ? [475 + 'px', 435 + 'px', (q - 475) + 'px', (q - 475 - topWidth) + 'px'] :
+           q < 1200 ? [540 + 'px', 500 + 'px', (q - 540) + 'px', (q - 540 - topWidth) + 'px'] :
+           q < 1350 ? [600 + 'px', 560 + 'px', (q - 600) + 'px', (q - 600 - topWidth) + 'px'] :
+                        [655 + 'px', 615 + 'px', (q - 655) + 'px', (q - 655 - topWidth) + 'px'];
 }
 
 function updateWidth() {
     var oldWidth = width;
     var w = roundWidth();
-    width = 'width ="' + w[1] + 'px"';
-    description = description.replaceAll(oldWidth, width);
-    L.DomUtil.get('sidebar-content').innerHTML = description;
+    width = 'width="' + w[1] + '"';
+    document.getElementById('map').style.width = w[2];
+    document.getElementById('sidebar').style.width = w[0];
+    if (document.getElementById(sidebarText)) {
+        document.getElementById(sidebarText).innerHTML = document.getElementById(sidebarText).innerHTML.replaceAll(oldWidth, width);
+    }
     if (document.getElementById('dropdown-contents')) {
-        document.getElementById('dropdown-contents').style.width = w[2] + 'px';
+        document.getElementById('dropdown-contents').style.width = w[3];
     }
 }
 
@@ -645,11 +652,12 @@ function resetScroll() {
 }
 
 //packaged function for updating sidebar output
-function updateOutput(desc, url, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
+function updateOutput(updateDiv, desc, url, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
     //pulling text from url, formatting when done, loading to sidebar
+    textDiv = L.DomUtil.get(updateDiv);
     readTxt(desc, url).done(function (response) {
-        description = outText(desc, url, response, { remove: remove, replace: replace });
-        L.DomUtil.get('sidebar-content').innerHTML = description;
+        //description = outText(desc, url, response, { remove: remove, replace: replace });
+        textDiv.innerHTML = outText(desc, url, response, { remove: remove, replace: replace });
     });
     //reset scroll position
     setTimeout(function () {
