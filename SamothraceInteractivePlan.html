@@ -80,9 +80,11 @@
             window.addEventListener(e, updateWidth);
         });
 
-        //adjusting zoom on orientation change or screen resize
-        window.addEventListener('deviceorientation', (event) => {
+        //listening for orientation change
+        let orient = window.matchMedia("(orientation: portrait)");
+        orient.addEventListener('change', (event) => {
             setTimeout(function () {
+                updateWidth();
                 var allFeatures = getAllFeatures(null, control);
                 if (allFeatures.length > 0) {
                     zoomToFeature(allFeatures, webID);
