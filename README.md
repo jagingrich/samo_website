@@ -1,10 +1,10 @@
 # Interactive Map: Sanctuary of the Great Gods, Samothrace
 
-Code, text, images, and GIS files that support this Shiny interactive map: Jared Gingrich, May 20, 2023
+Code, text, images, and GIS files that support this interactive map: Jared Gingrich, October 18, 2023
 
 This repository contains the text and images (.txt and .jpg files) that are read by the web map to load the descriptions that accompany each monument on the plan. Updating or replacing the files in the monument directories found in the Data tree of this repository will update the descriptions of the web map. Adding additional monument directories, named with a unique numeric identifier that matches with a feature on the GIS layers (found in the mapFeatures directory) will add a new description. 
 
-app.R is the most up-to-date version of the code for the interactive web map.
+InteractiveSanctuaryPlan.html is the most up-to-date version of the code for the interactive web map. It uses the variable settings and functions in the InteractiveSanctuaryPlan.js file and the webpage formatting in the InteractiveSanctuaryPlan.css file. 
 
 **File Upload and Naming Notes:**
 * Text description files should be a .txt file, ideally with UTF-8 encoding
