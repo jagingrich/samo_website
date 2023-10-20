@@ -155,7 +155,7 @@ function onSelect() {
 function updateText(webCode) {
     //update text output code
     webID = webCode;
-    updateOutput(sidebarText, webID, url, { remove: remove, replace: replace });
+    updateOutput(sidebarText, webID);
 
     //update dropdown
     if (document.getElementById(dropdownName)) {
@@ -491,15 +491,6 @@ function dropdownOptions(inputs, value, text) {
     return optionsOut;
 }
 
-//pulling text description from url
-function readTxt(desc, url) {
-    return $.ajax({
-        url: url + desc + "/SamoWebsite_" + desc + ".txt",
-        dataType: "text",
-        success: function (response) {}
-    });
-}
-
 //html formating for text strings
 function textHTMLOutput(text, { size = 16, bold = false, italics = false, paragraph = 'paragraph', linebreak = true } = {}) {
     var input = text;
@@ -652,15 +643,60 @@ function resetScroll() {
 }
 
 //packaged function for updating sidebar output
-function updateOutput(updateDiv, desc, url, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
-    //pulling text from url, formatting when done, loading to sidebar
-    textDiv = L.DomUtil.get(updateDiv);
-    readTxt(desc, url).done(function (response) {
-        //description = outText(desc, url, response, { remove: remove, replace: replace });
-        textDiv.innerHTML = outText(desc, url, response, { remove: remove, replace: replace });
-    });
+function updateOutput(updateDiv, desc) {
+    //loading text to sidebar
+    L.DomUtil.get(updateDiv).innerHTML = descriptions[desc];
     //reset scroll position
     setTimeout(function () {
         resetScroll();
     }, 10);
+}
+
+//function to load and format descriptions 
+function loadDescriptions() {
+    var names = [];
+    var texts = [];
+    //pulling text description from url
+    function readTxt(desc, url) {
+        return $.ajax({
+            url: url + desc + "/SamoWebsite_" + desc + ".txt",
+            dataType: "text",
+            success: function (response) { }
+        });
+    }
+    //reading text descriptions for each monument
+    var feats = [defaultWebID];
+    uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label').forEach((f) => feats.push(f.properties.WebCode));
+    feats.forEach(function (f) {
+        texts.push(readTxt(f, url));
+        names.push(f);
+    });
+    //object containing each description and key
+    $.when.apply(null, texts).always(function (response) {
+        var newTexts = {};
+        $.each(arguments, function (i, row) {
+            var status = row[1], data = row[0];
+            if (status === 'success') {
+                newTexts[names[i]] = outText(names[i], url, data, { remove: remove, replace: replace });
+            }
+        });
+        descriptions = newTexts;
+        updateProgress();
+        updateOutput(sidebarText, defaultWebID);
+    });
+}
+
+function updateProgress() {
+    counter.progress++;
+    counter.speed++;
+    var id = setInterval(frame, 10);
+    function frame() {
+        if (counter.pageNumber >= counter.progress * 50) {
+            counter.speed--;
+            clearInterval(id);
+        } else {
+            counter.pageNumber += 1 / counter.speed;
+        }
+    }
+    
 }
