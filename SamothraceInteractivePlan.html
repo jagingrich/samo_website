@@ -13,8 +13,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan_Functions.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan_Styling.css" />
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
         html, body {
@@ -27,11 +27,52 @@
 <body>
     <div id="map"></div>
     <div id="sidebar"></div>
+    <div id="loading">
+        <div id="progressBox">
+            <div id="progressBg">
+                <div id="progressBar"></div>
+            </div>
+        </div>
+    </div>
     
 
     <script>// initialize the map
 
         //setting initial map variables
+        var elem = document.getElementById("progressBar");
+        const counter = {
+            count1: 0,
+            count2: 0,
+            count3: 0,
+            update() {
+                elem.style.width = this.count1 + "%";
+                if (this.count1 >= 100) {
+                    $('#loading').fadeOut(250);
+                }
+            },
+            get pageNumber() {
+                return this.count1;
+            },
+            set pageNumber(pageNumber) {
+                this.count1 = pageNumber;
+                this.update(this.count1);
+            },
+            get progress() {
+                return this.count2;
+            },
+            set progress(progress) {
+                this.count2 = progress;
+                this.update(this.count2);
+            },
+            get speed() {
+                return this.count3;
+            },
+            set speed(speed) {
+                this.count3 = speed;
+                this.update(this.count3);
+            }
+        };
+
         var groups = [];
         var tileLayers = [];
         var attribution;
@@ -39,12 +80,15 @@
         var jsons = [];
         var dropdownName;
 
+        var loadStates;
+
         //setting description creation vars
         var sidebarText = 'sidebar-content';
         var url;
         var defaultWebID = '(0)Introduction';
         var webID = defaultWebID;
         var description = "";
+        var descriptions;
         var dropdownDefault = [];
         var remove = [];
         var replace = [];
@@ -53,7 +97,8 @@
 
         //pulling updated initialization vars
         updateInputs();
-
+        loadStates = tileLayers.length + jsonLayers.length;
+        
         //creating divs for parts of interactive plan
         divCreate('dropdown', 'map');
         divCreate(sidebarText, 'sidebar');
@@ -68,11 +113,6 @@
         //creating map bounds
         var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879), L.latLng(40.50176, 25.53177));
         map.flyToBounds(mapbounds);
-
-        addRecenterControl();
-
-        //setting the initial sidebar text on loading the map
-        updateOutput(sidebarText, webID, url, { remove: remove, replace: replace });
 
         //listening for width change
         updateWidth();
@@ -110,9 +150,14 @@
                         newDiv.addEventListener('change', onSelect);
                         newDiv.title = "Select Monument Name to Zoom In";
                     });
+                loadDescriptions(); //loading and formatting text descriptions for monuments
                 addLegend(); //adding legend to map
                 addRefresh(); //adding refresh button
+                addRecenterControl(); //adding recentering control to map
                 updateWidth();
-            });</script>
+                updateProgress();
+            }
+        );
+    </script>
 </body>
 </html>
