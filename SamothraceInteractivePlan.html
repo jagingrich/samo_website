@@ -48,6 +48,11 @@
                 elem.style.width = this.count1 + "%";
                 if (this.count1 >= 100) {
                     $('#loading').fadeOut(250);
+                    updateWidth();
+                    var allFeatures = getAllFeatures(null, control);
+                    if (allFeatures.length > 0) {
+                        zoomToFeature(allFeatures, webID);
+                    }
                 }
             },
             get pageNumber() {
