@@ -259,16 +259,13 @@ function addLayerGroups(mapInput, layerControl, layers, groups, functionOnLoad =
         jsons.forEach((j) => jsonInputs.push(readData(j)));
 
         //loading JSON data
-        $.when.apply(null, jsonInputs).done(function (response) {
+        $.when.apply(null, jsonInputs).always(function (response) {
             //loading each JSON layer
-            $.each(arguments, function (i, row) {
-                var status = row[1], data = row[0];
-                if (status === 'success') {
-                    var layer = data;
-                    layer.features.forEach((f) => f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name);
-                    jsonLayers.push(layer);
-                }
+            jsFiles.forEach(function (j) {
+                j.features.forEach((f) => f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name);
+                jsonLayers.push(j);
             });
+
             //adding JSON layers to groups
             jsonLayers.forEach(function (j) {
                 var match = false;
@@ -292,6 +289,17 @@ function addLayerGroups(mapInput, layerControl, layers, groups, functionOnLoad =
             }
         });
     }
+}
+
+//ajax request for JSON data
+function readData(url) {
+    return $.ajax({
+        url: url,
+        dataType: "json",
+        success: function (response) {
+            jsFiles.push(response);
+        }
+    });
 }
 
 //creating legend
@@ -437,15 +445,6 @@ function updateWidth() {
     if (document.getElementById('dropdown-contents')) {
         document.getElementById('dropdown-contents').style.width = w[3];
     }
-}
-
-//ajax request for JSON data
-function readData(url) {
-    return $.ajax({
-        url: url,
-        dataType: "json",
-        success: function (response) { }
-    });
 }
 
 //function for unique features from JSON input
@@ -656,12 +655,15 @@ function updateOutput(updateDiv, desc) {
 function loadDescriptions() {
     var names = [];
     var texts = [];
+    var textFiles = [];
     //pulling text description from url
     function readTxt(desc, url) {
         return $.ajax({
             url: url + desc + "/SamoWebsite_" + desc + ".txt",
             dataType: "text",
-            success: function (response) { }
+            success: function (response) {
+                textFiles.push([desc, response]);
+            }
         });
     }
     //reading text descriptions for each monument
@@ -669,16 +671,13 @@ function loadDescriptions() {
     uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label').forEach((f) => feats.push(f.properties.WebCode));
     feats.forEach(function (f) {
         texts.push(readTxt(f, url));
-        names.push(f);
+        //names.push(f);
     });
     //object containing each description and key
     $.when.apply(null, texts).always(function (response) {
         var newTexts = {};
-        $.each(arguments, function (i, row) {
-            var status = row[1], data = row[0];
-            if (status === 'success') {
-                newTexts[names[i]] = outText(names[i], url, data, { remove: remove, replace: replace });
-            }
+        textFiles.forEach(function (t) {
+            newTexts[t[0]] = outText(t[0], url, t[1], { remove: remove, replace: replace });
         });
         descriptions = newTexts;
         updateProgress();
