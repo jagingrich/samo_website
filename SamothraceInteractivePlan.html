@@ -13,8 +13,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@main/Data/mapCode/SamothraceInteractivePlan.css" />
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan_Functions.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
         html, body {
@@ -34,21 +34,20 @@
             </div>
         </div>
     </div>
-    
+
 
     <script>// initialize the map
-
         //setting initial map variables
         var elem = document.getElementById("progressBar");
         const counter = {
             count1: 0,
             count2: 0,
             count3: 0,
-            update() {
-                elem.style.width = this.count1 + "%";
-                if (this.count1 >= 100) {
+            update(count) {
+                elem.style.width = count + "%";
+                if (count >= 100) {
                     $('#loading').fadeOut(250);
-                    updateWidth();
+                    //updateWidth();
                     var allFeatures = getAllFeatures(null, control);
                     if (allFeatures.length > 0) {
                         zoomToFeature(allFeatures, webID);
@@ -67,16 +66,34 @@
             },
             set progress(progress) {
                 this.count2 = progress;
-                this.update(this.count2);
             },
             get speed() {
                 return this.count3;
             },
             set speed(speed) {
                 this.count3 = speed;
-                this.update(this.count3);
             }
         };
+        const orientation = {
+            orient: 'portrait',
+            state: 'portrait',
+            update(input) {
+                this.state = input;
+                updateWidth();
+                var allFeatures = getAllFeatures(null, control);
+                if (allFeatures.length > 0) {
+                    map.invalidateSize();
+                    zoomToFeature(allFeatures, webID);
+                }
+            },
+            get size() {
+                return this.orient;
+            },
+            set size(size) {
+                this.orient = size;
+                this.update(this.orient);
+            }
+        }
 
         var groups = [];
         var tileLayers = [];
@@ -98,13 +115,13 @@
         var dropdownDefault = [];
         var remove = [];
         var replace = [];
-        var width = 'width ="400px"';
+        var width = 'width="' + roundWidth()[1] + 'px"';
         var w = window.innerWidth;
 
         //pulling updated initialization vars
         updateInputs();
         loadStates = tileLayers.length + jsonLayers.length;
-        
+
         //creating divs for parts of interactive plan
         divCreate('dropdown', 'map');
         divCreate(sidebarText, 'sidebar');
@@ -119,23 +136,21 @@
         //creating map bounds
         var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879), L.latLng(40.50176, 25.53177));
         map.flyToBounds(mapbounds);
-
+        
         //listening for width change
-        updateWidth();
         ['resize', 'focus'].forEach(function (e) {
-            window.addEventListener(e, updateWidth);
-        });
-
-        //listening for orientation change
-        let orient = window.matchMedia("(orientation: portrait)");
-        orient.addEventListener('change', (event) => {
-            setTimeout(function () {
+            window.addEventListener(e, function () {
                 updateWidth();
-                var allFeatures = getAllFeatures(null, control);
-                if (allFeatures.length > 0) {
-                    zoomToFeature(allFeatures, webID);
-                }
-            }, 500);
+                setTimeout(function () {
+                    var orientate = 'landscape';
+                    if (window.innerWidth < window.innerHeight) {
+                        orientate = 'portrait';
+                    }
+                    if (orientate != orientation.state) {
+                        orientation.size = orientate;
+                    }
+                }, 100);
+            });
         });
 
         //adding layers to map, updating dropdown
@@ -161,9 +176,10 @@
                 addRefresh(); //adding refresh button
                 addRecenterControl(); //adding recentering control to map
                 updateWidth();
+                map.invalidateSize();
+                map._size.x = roundWidth()[2];
                 updateProgress();
             }
-        );
-    </script>
+        );</script>
 </body>
 </html>
