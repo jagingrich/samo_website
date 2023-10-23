@@ -425,25 +425,25 @@ function roundWidth() {
     const tops = Array.from(document.getElementsByClassName('leaflet-top'));
     var topWidth = 10 * tops.length;
     tops.forEach((f) => topWidth += f.clientWidth);
-    return q < 750 ? [q + 'px', (q - 40) + 'px', q + 'px', (q - 40) + 'px'] :
-           q < 900 ? [405 + 'px', 365 + 'px', (q - 405) + 'px', (q - 405 - topWidth) + 'px'] :
-           q < 1050 ? [475 + 'px', 435 + 'px', (q - 475) + 'px', (q - 475 - topWidth) + 'px'] :
-           q < 1200 ? [540 + 'px', 500 + 'px', (q - 540) + 'px', (q - 540 - topWidth) + 'px'] :
-           q < 1350 ? [600 + 'px', 560 + 'px', (q - 600) + 'px', (q - 600 - topWidth) + 'px'] :
-                        [655 + 'px', 615 + 'px', (q - 655) + 'px', (q - 655 - topWidth) + 'px'];
+    return q < 750 ? [q, q - 40, q, q - 40] :
+           q < 900 ? [405, 365, q - 405, q - 405 - topWidth] :
+           q < 1050 ? [475, 435, q - 475, q - 475 - topWidth] :
+           q < 1200 ? [540, 500, q - 540, q - 540 - topWidth] :
+           q < 1350 ? [600, 560, q - 600, q - 600 - topWidth] :
+                      [655, 615, q - 655, q - 655 - topWidth];
 }
 
 function updateWidth() {
     var oldWidth = width;
     var w = roundWidth();
-    width = 'width="' + w[1] + '"';
-    document.getElementById('map').style.width = w[2];
-    document.getElementById('sidebar').style.width = w[0];
+    width = 'width="' + w[1] + 'px"';
+    document.getElementById('map').style.width = w[2] + 'px';
+    document.getElementById('sidebar').style.width = w[0] + 'px';
     if (document.getElementById(sidebarText)) {
         document.getElementById(sidebarText).innerHTML = document.getElementById(sidebarText).innerHTML.replaceAll(oldWidth, width);
     }
     if (document.getElementById('dropdown-contents')) {
-        document.getElementById('dropdown-contents').style.width = w[3];
+        document.getElementById('dropdown-contents').style.width = w[3] + 'px';
     }
 }
 
