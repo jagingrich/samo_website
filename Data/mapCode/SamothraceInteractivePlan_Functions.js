@@ -155,7 +155,7 @@ function onSelect() {
 function updateText(webCode) {
     //update text output code
     webID = webCode;
-    updateOutput(sidebarText, webID, url, { remove: remove, replace: replace });
+    updateOutput(sidebarText, webID);
 
     //update dropdown
     if (document.getElementById(dropdownName)) {
@@ -259,16 +259,13 @@ function addLayerGroups(mapInput, layerControl, layers, groups, functionOnLoad =
         jsons.forEach((j) => jsonInputs.push(readData(j)));
 
         //loading JSON data
-        $.when.apply(null, jsonInputs).done(function (response) {
+        $.when.apply(null, jsonInputs).always(function (response) {
             //loading each JSON layer
-            $.each(arguments, function (i, row) {
-                var status = row[1], data = row[0];
-                if (status === 'success') {
-                    var layer = data;
-                    layer.features.forEach((f) => f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name);
-                    jsonLayers.push(layer);
-                }
+            jsFiles.forEach(function (j) {
+                j.features.forEach((f) => f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name);
+                jsonLayers.push(j);
             });
+
             //adding JSON layers to groups
             jsonLayers.forEach(function (j) {
                 var match = false;
@@ -292,6 +289,17 @@ function addLayerGroups(mapInput, layerControl, layers, groups, functionOnLoad =
             }
         });
     }
+}
+
+//ajax request for JSON data
+function readData(url) {
+    return $.ajax({
+        url: url,
+        dataType: "json",
+        success: function (response) {
+            jsFiles.push(response);
+        }
+    });
 }
 
 //creating legend
@@ -417,35 +425,26 @@ function roundWidth() {
     const tops = Array.from(document.getElementsByClassName('leaflet-top'));
     var topWidth = 10 * tops.length;
     tops.forEach((f) => topWidth += f.clientWidth);
-    return q < 750 ? [q + 'px', (q - 40) + 'px', q + 'px', (q - 40) + 'px'] :
-           q < 900 ? [405 + 'px', 365 + 'px', (q - 405) + 'px', (q - 405 - topWidth) + 'px'] :
-           q < 1050 ? [475 + 'px', 435 + 'px', (q - 475) + 'px', (q - 475 - topWidth) + 'px'] :
-           q < 1200 ? [540 + 'px', 500 + 'px', (q - 540) + 'px', (q - 540 - topWidth) + 'px'] :
-           q < 1350 ? [600 + 'px', 560 + 'px', (q - 600) + 'px', (q - 600 - topWidth) + 'px'] :
-                        [655 + 'px', 615 + 'px', (q - 655) + 'px', (q - 655 - topWidth) + 'px'];
+    return q < 750 ? [q, q - 40, q, q - 40] :
+           q < 900 ? [405, 365, q - 405, q - 405 - topWidth] :
+           q < 1050 ? [475, 435, q - 475, q - 475 - topWidth] :
+           q < 1200 ? [540, 500, q - 540, q - 540 - topWidth] :
+           q < 1350 ? [600, 560, q - 600, q - 600 - topWidth] :
+                      [655, 615, q - 655, q - 655 - topWidth];
 }
 
 function updateWidth() {
     var oldWidth = width;
     var w = roundWidth();
-    width = 'width="' + w[1] + '"';
-    document.getElementById('map').style.width = w[2];
-    document.getElementById('sidebar').style.width = w[0];
+    width = 'width="' + w[1] + 'px"';
+    document.getElementById('map').style.width = w[2] + 'px';
+    document.getElementById('sidebar').style.width = w[0] + 'px';
     if (document.getElementById(sidebarText)) {
         document.getElementById(sidebarText).innerHTML = document.getElementById(sidebarText).innerHTML.replaceAll(oldWidth, width);
     }
     if (document.getElementById('dropdown-contents')) {
-        document.getElementById('dropdown-contents').style.width = w[3];
+        document.getElementById('dropdown-contents').style.width = w[3] + 'px';
     }
-}
-
-//ajax request for JSON data
-function readData(url) {
-    return $.ajax({
-        url: url,
-        dataType: "json",
-        success: function (response) { }
-    });
 }
 
 //function for unique features from JSON input
@@ -489,15 +488,6 @@ function dropdownOptions(inputs, value, text) {
     var optionsOut = [];
     inputs.forEach((f) => optionsOut.push('<option value="' + f.properties[value] + '">' + f.properties[text] + '</option>'))
     return optionsOut;
-}
-
-//pulling text description from url
-function readTxt(desc, url) {
-    return $.ajax({
-        url: url + desc + "/SamoWebsite_" + desc + ".txt",
-        dataType: "text",
-        success: function (response) {}
-    });
 }
 
 //html formating for text strings
@@ -652,15 +642,60 @@ function resetScroll() {
 }
 
 //packaged function for updating sidebar output
-function updateOutput(updateDiv, desc, url, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
-    //pulling text from url, formatting when done, loading to sidebar
-    textDiv = L.DomUtil.get(updateDiv);
-    readTxt(desc, url).done(function (response) {
-        //description = outText(desc, url, response, { remove: remove, replace: replace });
-        textDiv.innerHTML = outText(desc, url, response, { remove: remove, replace: replace });
-    });
+function updateOutput(updateDiv, desc) {
+    //loading text to sidebar
+    L.DomUtil.get(updateDiv).innerHTML = descriptions[desc];
     //reset scroll position
     setTimeout(function () {
         resetScroll();
     }, 10);
+}
+
+//function to load and format descriptions 
+function loadDescriptions() {
+    var names = [];
+    var texts = [];
+    var textFiles = [];
+    //pulling text description from url
+    function readTxt(desc, url) {
+        return $.ajax({
+            url: url + desc + "/SamoWebsite_" + desc + ".txt",
+            dataType: "text",
+            success: function (response) {
+                textFiles.push([desc, response]);
+            }
+        });
+    }
+    //reading text descriptions for each monument
+    var feats = [defaultWebID];
+    uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label').forEach((f) => feats.push(f.properties.WebCode));
+    feats.forEach(function (f) {
+        texts.push(readTxt(f, url));
+        //names.push(f);
+    });
+    //object containing each description and key
+    $.when.apply(null, texts).always(function (response) {
+        var newTexts = {};
+        textFiles.forEach(function (t) {
+            newTexts[t[0]] = outText(t[0], url, t[1], { remove: remove, replace: replace });
+        });
+        descriptions = newTexts;
+        updateProgress();
+        updateOutput(sidebarText, defaultWebID);
+    });
+}
+
+function updateProgress() {
+    counter.progress++;
+    counter.speed++;
+    var id = setInterval(frame, 10);
+    function frame() {
+        if (counter.pageNumber >= counter.progress * 50) {
+            counter.speed--;
+            clearInterval(id);
+        } else {
+            counter.pageNumber += 1 / counter.speed;
+        }
+    }
+    
 }
