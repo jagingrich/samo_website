@@ -156,6 +156,7 @@ function updateText(webCode) {
     //update text output code
     webID = webCode;
     updateOutput(sidebarText, webID);
+    document.getElementById(sidebarText).innerHTML = document.getElementById(sidebarText).innerHTML.replaceAll('width="400px"', width);
 
     //update dropdown
     if (document.getElementById(dropdownName)) {
@@ -440,6 +441,7 @@ function updateWidth() {
     document.getElementById('map').style.width = w[2] + 'px';
     document.getElementById('sidebar').style.width = w[0] + 'px';
     if (document.getElementById(sidebarText)) {
+        document.getElementById(sidebarText).innerHTML = document.getElementById(sidebarText).innerHTML.replaceAll('width="400px"', width);
         document.getElementById(sidebarText).innerHTML = document.getElementById(sidebarText).innerHTML.replaceAll(oldWidth, width);
     }
     if (document.getElementById('dropdown-contents')) {
@@ -592,7 +594,7 @@ function outText(desc, url, text, { remove = [null], replace = [[keyword = null,
                 break;
             case 'Caption':
                 capcount += 1;
-                const capUrl = '<img src="' + url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg" + '" ' + width + ' /><br>';
+                const capUrl = '<img src="' + url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg" + '" ' + 'width="400px"' + ' /><br>';
                 if (newText.length === 0) {
                     newText = '<br>';
                 } else {
