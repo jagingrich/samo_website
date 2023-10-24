@@ -12,8 +12,9 @@
             crossorigin=""></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
+    <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website@latest/Data/mapCode/SamothraceInteractivePlan_Functions.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
@@ -37,43 +38,32 @@
 
 
     <script>// initialize the map
-        //setting initial map variables
+
+        //progress counter for loading the interactive plan
         var elem = document.getElementById("progressBar");
         const counter = {
-            count1: 0,
-            count2: 0,
-            count3: 0,
+            count: 0,
             update(count) {
+                count = Math.round(count * 100) / 100;
                 elem.style.width = count + "%";
                 if (count >= 100) {
                     $('#loading').fadeOut(250);
-                    //updateWidth();
                     var allFeatures = getAllFeatures(null, control);
                     if (allFeatures.length > 0) {
                         zoomToFeature(allFeatures, webID);
                     }
                 }
             },
-            get pageNumber() {
-                return this.count1;
-            },
-            set pageNumber(pageNumber) {
-                this.count1 = pageNumber;
-                this.update(this.count1);
-            },
             get progress() {
-                return this.count2;
+                return this.count;
             },
             set progress(progress) {
-                this.count2 = progress;
-            },
-            get speed() {
-                return this.count3;
-            },
-            set speed(speed) {
-                this.count3 = speed;
+                this.count = progress;
+                this.update(this.count);
             }
-        };
+        }
+
+        //checking orientation state, resetting on change
         const orientation = {
             orient: 'portrait',
             state: 'portrait',
@@ -93,17 +83,57 @@
                 this.orient = size;
                 this.update(this.orient);
             }
+        }        
+
+        //shapfile loading counter, starting map on all shapefiles loaded
+        const layerCounter = {
+            count: 0,
+            update() {
+                if (this.count == shpLayers.length) {
+                    addLayerGroups(
+                        mapInput = map,
+                        layerControl = control,
+                        layers = [...tileLayers, ...shpFiles],
+                        groups = generateLayerGroups({ groups: groups }),
+                        functionOnLoad = function () {
+                            divCreate(divName = dropdownName, //adding dropdown to map
+                                divContainer = 'dropdown',
+                                type = 'select',
+                                functionOnCreate = function (newDiv) {
+                                    //creating dropdown
+                                    options = [...dropdownDefault, ...dropdownOptions(uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label'), 'WebCode', 'fullName')];
+                                    options.forEach((option) => newDiv.innerHTML += option);
+                                    //dropdown appearance/settings
+                                    newDiv.addEventListener('change', onSelect);
+                                    newDiv.title = "Select Monument Name to Zoom In";
+                                });
+                            loadDescriptions(); //loading and formatting text descriptions for monuments
+                            addLegend(); //adding legend to map
+                            addRefresh(); //adding refresh button
+                            addRecenterControl(); //adding recentering control to map
+                            updateWidth(); //updating window width
+                            map.invalidateSize(); //recentering map in window
+                            map._size.x = roundWidth()[2];
+                        }
+                    );
+                }
+            },
+            get iteration() {
+                return this.count;
+            },
+            set iteration(iteration) {
+                this.count = iteration;
+                this.update(this.count);
+            }
         }
 
+        //setting initial map variables
+        var shpFiles = [];
         var groups = [];
         var tileLayers = [];
+        var shpLayers = [];
         var attribution;
-        var jsonLayers = [];
-        var jsFiles = [];
-        var jsons = [];
         var dropdownName;
-
-        var loadStates;
 
         //setting description creation vars
         var sidebarText = 'sidebar-content';
@@ -117,10 +147,10 @@
         var replace = [];
         var width = 'width="' + roundWidth()[1] + 'px"';
         var w = window.innerWidth;
+        var layersCount = 0;
 
         //pulling updated initialization vars
         updateInputs();
-        loadStates = tileLayers.length + jsonLayers.length;
 
         //creating divs for parts of interactive plan
         divCreate('dropdown', 'map');
@@ -136,6 +166,9 @@
         //creating map bounds
         var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879), L.latLng(40.50176, 25.53177));
         map.flyToBounds(mapbounds);
+
+        //reading in shapefiles
+        shpLayers.forEach((s) => readSHPs(s));
         
         //listening for width change
         ['resize', 'focus'].forEach(function (e) {
@@ -152,34 +185,6 @@
                 }, 100);
             });
         });
-
-        //adding layers to map, updating dropdown
-        addLayerGroups(
-            mapInput = map,
-            layerControl = control,
-            layers = [...tileLayers, ...jsonLayers],
-            groups = generateLayerGroups({ groups: groups }),
-            functionOnLoad = function () {
-                divCreate(divName = dropdownName, //adding dropdown to map
-                    divContainer = 'dropdown',
-                    type = 'select',
-                    functionOnCreate = function (newDiv) {
-                        //creating dropdown
-                        options = [...dropdownDefault, ...dropdownOptions(uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label'), 'WebCode', 'fullName')];
-                        options.forEach((option) => newDiv.innerHTML += option);
-                        //dropdown appearance/settings
-                        newDiv.addEventListener('change', onSelect);
-                        newDiv.title = "Select Monument Name to Zoom In";
-                    });
-                loadDescriptions(); //loading and formatting text descriptions for monuments
-                addLegend(); //adding legend to map
-                addRefresh(); //adding refresh button
-                addRecenterControl(); //adding recentering control to map
-                updateWidth();
-                map.invalidateSize();
-                map._size.x = roundWidth()[2];
-                updateProgress();
-            }
-        );</script>
+    </script>
 </body>
 </html>
