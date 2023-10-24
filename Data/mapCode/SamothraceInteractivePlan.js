@@ -9,8 +9,8 @@ function updateInputs() {
         'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png',
         'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png'];
     attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace';
-    jsonLayers = ['https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.geojson',
-        'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.geojson'];
+    shpLayers = ['https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.shp',
+        'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.shp'];
 
     dropdownName = 'dropdown-contents';
     //setting description creation vars
@@ -206,14 +206,13 @@ function generateLayerGroups({ groups = [[groupName = null, keyword = null]] }) 
 function addLayerGroups(mapInput, layerControl, layers, groups, functionOnLoad = null) {
     //type of layers
     var tiles = [];
-    var jsons = [];
-    var jsonLayers = [];
+    var shps = [];
     layers.forEach(function (l) {
-        if (l.match('{z}/{x}/{y}.png') != null) {
+        if (typeof (l) == 'string' && l.match('{z}/{x}/{y}.png') != null) {
             tiles.push(l);
         }
-        if (l.match('.json') != null) {
-            jsons.push(l);
+        if (typeof (l) == 'object' && l.type == "FeatureCollection") {
+            shps.push(l);
         }
     });
 
@@ -250,55 +249,50 @@ function addLayerGroups(mapInput, layerControl, layers, groups, functionOnLoad =
         if (!match) {
             tileLayer(t, true).addTo(groups[groups.findIndex((element) => element.name == "Other")].layers)
         }
+        layersCount++;
+        updateProgress(tileLayers.length + shpFiles.length + 1);
     });
 
-    if (jsons.length == 0) {
-        addLayers(mapInput, groups, layerControl);
-    } else {
-        //json layers to groups
-        var jsonInputs = [];
-        jsons.forEach((j) => jsonInputs.push(readData(j)));
-
-        //loading JSON data
-        $.when.apply(null, jsonInputs).always(function (response) {
-            //loading each JSON layer
-            jsFiles.forEach(function (j) {
-                j.features.forEach((f) => f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name);
-                jsonLayers.push(j);
-            });
-
-            //adding JSON layers to groups
-            jsonLayers.forEach(function (j) {
-                var match = false;
-                groups.forEach(function (g) {
-                    if (g.name != 'Other') {
-                        const name = j.name;
-                        if (name.match(g.keyword) != null) {
-                            jsonLayer(j).addTo(g.layers);
-                            match = true;
-                        }
-                    }
-                });
-                if (!match) {
-                    jsonLayer(j).addTo(groups[groups.findIndex((element) => element.name == "Other")].layers)
+    //shp layers to groups
+    shps.forEach(function (s) {
+        var match = false;
+        groups.forEach(function (g) {
+            if (g.name != 'Other') {
+                if (s.name.match(g.keyword) != null) {
+                    jsonLayer(s).addTo(g.layers);
+                    match = true;
                 }
-            });
-            addLayers(mapInput, groups, layerControl);
-
-            if (functionOnLoad != null && typeof (functionOnLoad) == 'function') {
-                functionOnLoad();
             }
         });
+        if (!match) {
+            jsonLayer(s).addTo(groups[groups.findIndex((element) => element.name == "Other")].layers)
+        }
+        layersCount++;
+        updateProgress(tileLayers.length + shpFiles.length + 1);
+    });
+    addLayers(mapInput, groups, layerControl);
+
+    if (functionOnLoad != null && typeof (functionOnLoad) == 'function') {
+        functionOnLoad();
     }
 }
 
-//ajax request for JSON data
-function readData(url) {
-    return $.ajax({
-        url: url,
-        dataType: "json",
-        success: function (response) {
-            jsFiles.push(response);
+//ajax request for SHPfile data
+function readSHPs(url) {
+    url = url.replaceAll('.shp', '');
+    $.ajax({
+        url: url + '.shp',
+        type: "head",
+        success: function () {
+            shp(url).then(function (out) {
+                out.name = url.split('/')[url.split('/').length - 1];
+                out.features.forEach((f) => f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name);
+                shpFiles.push(out);
+                layerCounter.iteration++;
+            });
+        },
+        error: function () {
+            layerCounter.iteration++;
         }
     });
 }
@@ -673,7 +667,6 @@ function loadDescriptions() {
     uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label').forEach((f) => feats.push(f.properties.WebCode));
     feats.forEach(function (f) {
         texts.push(readTxt(f, url));
-        //names.push(f);
     });
     //object containing each description and key
     $.when.apply(null, texts).always(function (response) {
@@ -682,21 +675,21 @@ function loadDescriptions() {
             newTexts[t[0]] = outText(t[0], url, t[1], { remove: remove, replace: replace });
         });
         descriptions = newTexts;
-        updateProgress();
+        updateProgress(tileLayers.length + shpFiles.length + 1);
         updateOutput(sidebarText, defaultWebID);
     });
 }
 
-function updateProgress() {
-    counter.progress++;
-    counter.speed++;
+//updating progress bar as layers/descriptions load
+function updateProgress(segments) {
     var id = setInterval(frame, 10);
+    var iter = 0;
     function frame() {
-        if (counter.pageNumber >= counter.progress * 50) {
-            counter.speed--;
-            clearInterval(id);
+        if (iter < 100) {
+            counter.progress += 1 / segments;
+            iter++;
         } else {
-            counter.pageNumber += 1 / counter.speed;
+            clearInterval(id);
         }
     }
     
