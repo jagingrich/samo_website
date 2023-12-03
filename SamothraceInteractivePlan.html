@@ -23,6 +23,30 @@
             margin: 0;
             padding: 0;
         }
+        .leaflet-tooltip-left:before {
+            right: 0;
+            margin-right: -12px;
+            border-left-color: rgba(0, 0, 0, 0);
+        }
+        .leaflet-tooltip-right:before {
+            left: 0;
+            margin-left: -12px;
+            border-right-color: rgba(0, 0, 0, 0);
+        }
+        .leaflet-textTitle {
+            position: absolute;
+            padding: 1px 3px 1px 3px;
+            background-color: rgba(200, 200, 200, 0.95);
+            border: 0px solid #00000000;
+            color: #000;
+            white-space: nowrap;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            pointer-events: none;
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
@@ -96,6 +120,19 @@
                         layers = [...tileLayers, ...shpFiles],
                         groups = generateLayerGroups({ groups: groups }),
                         functionOnLoad = function () {
+                            window.control._layers.forEach((l) => {
+                                Object.values(l.layer._layers).forEach((e) => {
+                                    if (!(Object.keys(e)).includes('_url')) {
+                                        Object.values(e._layers).forEach((v) => {
+                                            v.bindTooltipDelayed(v.feature.properties.Name, 
+                                            {
+                                                sticky: true,
+                                                className: 'leaflet-textTitle' 
+                                            });
+                                        });
+                                    }
+                                });
+                            });
                             divCreate(divName = dropdownName, //adding dropdown to map
                                 divContainer = 'dropdown',
                                 type = 'select',
@@ -183,6 +220,57 @@
                     }
                 }, 100);
             });
+        });
+
+        L.Layer.include({
+            bindTooltipDelayed: function (content, options) {
+                if (content instanceof L.Tooltip) {
+                    L.setOptions(content, options);
+                    this._tooltip = content;
+                    content._source = this;
+                } else {
+                    if (!this._tooltip || options) {
+                        this._tooltip = new L.Tooltip(options, this);
+                    }
+                    this._tooltip.setContent(content);
+                }
+                this._initTooltipInteractionsDelayed();
+                return this;
+            },
+            _initTooltipInteractionsDelayed: function () {
+                this.timer = null;
+                this.lat_lang = null;
+                this.on('mouseover', startTimer);
+                this.on('mousemove', hoverTimer);
+                this.on('click', stopTimer);
+                this.on('mouseout', stopTimer);
+        
+                function stopTimer (e, me = null) {
+                    if (e.type == 'click') {
+                        var tt = this._tooltip;
+                        this.unbindTooltip();
+                        this._tooltip = tt;
+                    }            
+                    var out = this;
+                    if (this == window && me != null) {
+                        out = me;
+                    }
+                    clearTimeout(out.timer);
+                    out.closeTooltip();
+                }
+                function startTimer (e) {
+                    this.timer = setTimeout(function() {}, 1000);
+                }
+                function hoverTimer (e) {
+                    var lat_lang = e.latlng;
+                    clearTimeout(this.timer);
+                    stopTimer(e, this);
+                    var out = this;
+                    this.timer = setTimeout(function() {
+                        out.bindTooltip(out._tooltip._content).openTooltip(lat_lang);
+                    }, 1000);
+                }
+            }
         });
     </script>
 </body>
