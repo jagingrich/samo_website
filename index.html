@@ -1,0 +1,277 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>AES Interactive Site Plan</title>
+    <link rel="icon" href="https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapIcons/SamoWebsite_Icon.png"
+          type="image/x-icon">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
+    <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.css" />
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .leaflet-tooltip-left:before {
+            right: 0;
+            margin-right: -12px;
+            border-left-color: rgba(0, 0, 0, 0);
+        }
+        .leaflet-tooltip-right:before {
+            left: 0;
+            margin-left: -12px;
+            border-right-color: rgba(0, 0, 0, 0);
+        }
+        .leaflet-textTitle {
+            position: absolute;
+            padding: 1px 3px 1px 3px;
+            background-color: rgba(200, 200, 200, 0.95);
+            border: 0px solid #00000000;
+            color: #000;
+            white-space: nowrap;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            pointer-events: none;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="sidebar"></div>
+    <div id="loading">
+        <div id="progressBox">
+            <div id="progressBg">
+                <div id="progressBar"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>// initialize the map
+
+        //progress counter for loading the interactive plan
+        var elem = document.getElementById("progressBar");
+        const counter = {
+            count: 0,
+            update(count) {
+                count = Math.round(count * 100) / 100;
+                elem.style.width = count + "%";
+                if (count >= 100) {
+                    $('#loading').fadeOut(250);
+                    var allFeatures = getAllFeatures(null, control);
+                    if (allFeatures.length > 0) {
+                        zoomToFeature(allFeatures, webID);
+                    }
+                }
+            },
+            get progress() {
+                return this.count;
+            },
+            set progress(progress) {
+                this.count = progress;
+                this.update(this.count);
+            }
+        }
+
+        //checking orientation state, resetting on change
+        const orientation = {
+            orient: 'portrait',
+            state: 'portrait',
+            update(input) {
+                this.state = input;
+                updateWidth();
+                var allFeatures = getAllFeatures(null, control);
+                if (allFeatures.length > 0) {
+                    map.invalidateSize();
+                    zoomToFeature(allFeatures, webID);
+                }
+            },
+            get size() {
+                return this.orient;
+            },
+            set size(size) {
+                this.orient = size;
+                this.update(this.orient);
+            }
+        }        
+
+        //shapfile loading counter, starting map on all shapefiles loaded
+        const layerCounter = {
+            count: 0,
+            update() {
+                if (this.count == shpLayers.length) {
+                    addLayerGroups(
+                        mapInput = map,
+                        layerControl = control,
+                        layers = [...tileLayers, ...shpFiles],
+                        groups = generateLayerGroups({ groups: groups }),
+                        functionOnLoad = function () {
+                            window.control._layers.forEach((l) => {
+                                Object.values(l.layer._layers).forEach((e) => {
+                                    if (!(Object.keys(e)).includes('_url')) {
+                                        Object.values(e._layers).forEach((v) => {
+                                            v.bindTooltipDelayed(v.feature.properties.Name, 
+                                            {
+                                                sticky: true,
+                                                className: 'leaflet-textTitle' 
+                                            });
+                                        });
+                                    }
+                                });
+                            });
+                            divCreate(divName = dropdownName, //adding dropdown to map
+                                divContainer = 'dropdown',
+                                type = 'select',
+                                functionOnCreate = function (newDiv) {
+                                    //creating dropdown
+                                    options = [...dropdownDefault, ...dropdownOptions(uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label'), 'WebCode', 'fullName')];
+                                    options.forEach((option) => newDiv.innerHTML += option);
+                                    //dropdown appearance/settings
+                                    newDiv.addEventListener('change', onSelect);
+                                    newDiv.title = "Select Monument Name to Zoom In";
+                                });
+                            loadDescriptions(); //loading and formatting text descriptions for monuments
+                            addLegend(); //adding legend to map
+                            addRefresh(); //adding refresh button
+                            addRecenterControl(); //adding recentering control to map
+                            updateWidth(); //updating window width
+                            map.invalidateSize(); //recentering map in window
+                            map._size.x = roundWidth()[2];
+                        }
+                    );
+                }
+            },
+            get iteration() {
+                return this.count;
+            },
+            set iteration(iteration) {
+                this.count = iteration;
+                this.update(this.count);
+            }
+        }
+
+        //setting initial map variables
+        var shpFiles = [];
+        var groups = [];
+        var tileLayers = [];
+        var shpLayers = [];
+        var attribution;
+        var dropdownName;
+
+        //setting description creation vars
+        var sidebarText = 'sidebar-content';
+        var url;
+        var defaultWebID = '(0)Introduction';
+        var webID = defaultWebID;
+        var descriptions;
+        var dropdownDefault = [];
+        var remove = [];
+        var replace = [];
+        var width = 'width="' + roundWidth()[1] + 'px"';
+        var w = window.innerWidth;
+        var layersCount = 0;
+
+        //pulling updated initialization vars
+        updateInputs();
+
+        //creating divs for parts of interactive plan
+        divCreate('dropdown', 'map');
+        divCreate(sidebarText, 'sidebar');
+
+        //creating map variable & layer control
+        var map = L.map('map', {
+            center: [40.50065, 25.53026],
+            zoom: 18
+        });
+        var control = L.control.layers({}, null, { collapsed: false }).addTo(map);
+
+        //creating map bounds
+        var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879), L.latLng(40.50176, 25.53177));
+        map.flyToBounds(mapbounds);
+
+        //reading in shapefiles
+        shpLayers.forEach((s) => readSHPs(s));
+        
+        //listening for width change
+        ['resize', 'focus'].forEach(function (e) {
+            window.addEventListener(e, function () {
+                updateWidth();
+                setTimeout(function () {
+                    var orientate = 'landscape';
+                    if (window.innerWidth < window.innerHeight) {
+                        orientate = 'portrait';
+                    }
+                    if (orientate != orientation.state) {
+                        orientation.size = orientate;
+                    }
+                }, 100);
+            });
+        });
+
+        L.Layer.include({
+            bindTooltipDelayed: function (content, options) {
+                if (content instanceof L.Tooltip) {
+                    L.setOptions(content, options);
+                    this._tooltip = content;
+                    content._source = this;
+                } else {
+                    if (!this._tooltip || options) {
+                        this._tooltip = new L.Tooltip(options, this);
+                    }
+                    this._tooltip.setContent(content);
+                }
+                this._initTooltipInteractionsDelayed();
+                return this;
+            },
+            _initTooltipInteractionsDelayed: function () {
+                this.timer = null;
+                this.lat_lang = null;
+                this.on('mouseover', startTimer);
+                this.on('mousemove', hoverTimer);
+                this.on('click', stopTimer);
+                this.on('mouseout', stopTimer);
+        
+                function stopTimer (e, me = null) {
+                    if (e.type == 'click') {
+                        var tt = this._tooltip;
+                        this.unbindTooltip();
+                        this._tooltip = tt;
+                    }            
+                    var out = this;
+                    if (this == window && me != null) {
+                        out = me;
+                    }
+                    clearTimeout(out.timer);
+                    out.closeTooltip();
+                }
+                function startTimer (e) {
+                    this.timer = setTimeout(function() {}, 1000);
+                }
+                function hoverTimer (e) {
+                    var lat_lang = e.latlng;
+                    clearTimeout(this.timer);
+                    stopTimer(e, this);
+                    var out = this;
+                    this.timer = setTimeout(function() {
+                        out.bindTooltip(out._tooltip._content).openTooltip(lat_lang);
+                    }, 1000);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
