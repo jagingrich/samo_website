@@ -420,12 +420,17 @@ function roundWidth() {
     const tops = Array.from(document.getElementsByClassName('leaflet-top'));
     var topWidth = 10 * tops.length;
     tops.forEach((f) => topWidth += f.clientWidth);
-    return q < 750 ? [q, q - 40, q, q - 40] :
-           q < 900 ? [405, 365, q - 405, q - 405 - topWidth] :
-           q < 1050 ? [475, 435, q - 475, q - 475 - topWidth] :
-           q < 1200 ? [540, 500, q - 540, q - 540 - topWidth] :
-           q < 1350 ? [600, 560, q - 600, q - 600 - topWidth] :
-                      [655, 615, q - 655, q - 655 - topWidth];
+    if (window.innerWidth < window.innerHeight) {
+        return [q, q - 40, q, q - 40];
+    }
+    else {
+        return q < 750 ? [q, q - 40, q, q - 40] :
+               q < 900 ? [405, 365, q - 405, q - 405 - topWidth] :
+               q < 1050 ? [475, 435, q - 475, q - 475 - topWidth] :
+               q < 1200 ? [540, 500, q - 540, q - 540 - topWidth] :
+               q < 1350 ? [600, 560, q - 600, q - 600 - topWidth] :
+                          [655, 615, q - 655, q - 655 - topWidth];
+    }
 }
 
 function updateWidth() {
