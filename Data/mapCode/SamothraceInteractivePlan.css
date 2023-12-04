@@ -119,6 +119,7 @@
     top: 10px;
     position: absolute;
     font: 14px/16px Arial, Helvetica, sans-serif;
+    z-index: 2600;
 }
 
 #dropdown-contents {
@@ -135,7 +136,7 @@
     border-width: 1px 1px 1px 1px;
     opacity: 0.7;
     text-align: center;
-    z-index: 1000;
+    z-index: 2200;
     font-size: 16px;
     font-family: inherit;
 }
