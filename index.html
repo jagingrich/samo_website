@@ -207,7 +207,7 @@
         shpLayers.forEach((s) => readSHPs(s));
         
         //listening for width change
-        ['resize', 'focus'].forEach(function (e) {
+        ['resize', 'focus', 'orientationchange'].forEach(function (e) {
             window.addEventListener(e, function () {
                 updateWidth();
                 setTimeout(function () {
