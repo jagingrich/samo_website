@@ -156,8 +156,8 @@ function updateText(webCode) {
     //update text output code
     webID = webCode;
     updateOutput(sidebarText, webID);
-    document.getElementById(sidebarText).innerHTML = document.getElementById(sidebarText).innerHTML.replaceAll('width="400px"', width);
-
+    updateWidth();
+    
     //update dropdown
     if (document.getElementById(dropdownName)) {
         var dropdown = document.getElementById(dropdownName);
@@ -682,6 +682,7 @@ function loadDescriptions() {
         descriptions = newTexts;
         updateProgress(tileLayers.length + shpFiles.length + 1);
         updateOutput(sidebarText, defaultWebID);
+        updateWidth();
     });
 }
 
