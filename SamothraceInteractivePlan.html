@@ -151,6 +151,7 @@
                             updateWidth(); //updating window width
                             map.invalidateSize(); //recentering map in window
                             map._size.x = roundWidth()[2];
+                            map.setMaxBounds(mapbounds);
                         }
                     );
                 }
