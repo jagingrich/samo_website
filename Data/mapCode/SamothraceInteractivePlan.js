@@ -327,7 +327,7 @@ function addLegend() {
             d == "4" ? '#ff871f' :
             d == "5" ? '#ff171F' :
             d == "6" ? '#fdf500' :
-                       '#00000000';
+                    '#00000000';
     }
 
     legend.addTo(map);
@@ -421,15 +421,15 @@ function roundWidth() {
     var topWidth = 10 * tops.length;
     tops.forEach((f) => topWidth += f.clientWidth);
     if (window.innerWidth < window.innerHeight) {
-        return [q, q - 40, q, q - 40];
+        return [q, q - 40, q, q - 40, 'portrait'];
     }
     else {
-        return q < 750 ? [q, q - 40, q, q - 40] :
-               q < 900 ? [405, 365, q - 405, q - 405 - topWidth] :
-               q < 1050 ? [475, 435, q - 475, q - 475 - topWidth] :
-               q < 1200 ? [540, 500, q - 540, q - 540 - topWidth] :
-               q < 1350 ? [600, 560, q - 600, q - 600 - topWidth] :
-                          [655, 615, q - 655, q - 655 - topWidth];
+        return q < 750 ? [q, q - 40, q, q - 40, 'landscape'] :
+            q < 900 ? [405, 365, q - 405, q - 405 - topWidth, 'landscape'] :
+            q < 1050 ? [475, 435, q - 475, q - 475 - topWidth, 'landscape'] :
+            q < 1200 ? [540, 500, q - 540, q - 540 - topWidth, 'landscape'] :
+            q < 1350 ? [600, 560, q - 600, q - 600 - topWidth, 'landscape'] :
+                        [655, 615, q - 655, q - 655 - topWidth, 'landscape'];
     }
 }
 
@@ -439,12 +439,29 @@ function updateWidth() {
     width = 'width="' + w[1] + 'px"';
     document.getElementById('map').style.width = w[2] + 'px';
     document.getElementById('sidebar').style.width = w[0] + 'px';
+    if (w[4] == 'portrait') {
+        document.getElementById('sidebar').style.boxShadow = 'none';
+        document.getElementById('sidebar').style.webkitBorderRadius = 0;
+        document.getElementById('sidebar').style.borderRadius = 0;
+    } else {
+        document.getElementById('sidebar').style.boxShadow = '0 1px 7px rgba(0, 0, 0, 0.65)';
+        document.getElementById('sidebar').style.webkitBorderRadius = '4px';
+        document.getElementById('sidebar').style.borderRadius = '4px';
+    }
     if (document.getElementById(sidebarText)) {
-        document.getElementById(sidebarText).innerHTML = document.getElementById(sidebarText).innerHTML.replaceAll('width="400px"', width);
-        document.getElementById(sidebarText).innerHTML = document.getElementById(sidebarText).innerHTML.replaceAll(oldWidth, width);
+        Array.from(document.getElementsByClassName('image')).forEach((i) => {
+            i.style.width = w[1] + 'px';
+        });
     }
     if (document.getElementById('dropdown-contents')) {
         document.getElementById('dropdown-contents').style.width = w[3] + 'px';
+        if (w[4] == 'portrait') {
+            document.getElementById('dropdown-contents').style.left = '20px';
+            document.getElementById('sidebar-content').style.paddingTop = '50px';
+        } else {
+            document.getElementById('dropdown-contents').style.left = '54px';
+            document.getElementById('sidebar-content').style.paddingTop = '0px';
+        }
     }
 }
 
@@ -492,39 +509,11 @@ function dropdownOptions(inputs, value, text) {
 }
 
 //html formating for text strings
-function textHTMLOutput(text, { size = 16, bold = false, italics = false, paragraph = 'paragraph', linebreak = true } = {}) {
-    var input = text;
-    var head = '<text style="font-size:' + size + 'px;">';
-    var foot = '</text><br>';
-    if (bold == true) {//html for bold
-        head += '<b>';
-        foot = '</b>' + foot;
-    }
-    if (italics == true) {//html for italics
-        head += '<i>';
-        foot = '</i>' + foot;
-    }
-    if (linebreak == true) {//adding an additional linebreak
-        foot += '<br>';
-    }
-    switch (paragraph) {//paragraph styling
-        case 'indent':
-            head = '<div style="text-indent: 36px;">' + head;
-            foot += '</div>'
-            break;
-        case 'hanging':
-            head = '<div style="text-indent: -36px; padding-left: 36px;">' + head;
-            foot += '</div>'
-            break;
-        default:
-    }
-    return head + input + foot;//output
-}
 
 //formatting text output for sidebar
 function splitTxt(text, { remove = [null], replace = [[keyword = null, replacement = null]]}) {
     //split input text to individual lines
-    var startText = text.match(/[^\r\n]+/g);
+    var startText = text.split(/\r\n|\r|\n/);
     var splitText = [];
 
     //string of keywords to remove
@@ -561,77 +550,105 @@ function splitTxt(text, { remove = [null], replace = [[keyword = null, replaceme
             }
         }
     }
+    //removing white space at top and bottom of text
+    while(splitText[0][0] == 'Space' ) {
+        splitText.shift();
+    }
+    while(splitText[(splitText.length - 2)][0] == 'Space' && splitText[(splitText.length - 1)][0] == 'Space') {
+        splitText.pop();
+    }
     return splitText;//output
 }
 
 function outText(desc, url, text, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
     var splitText = splitTxt(text, { remove: remove, replace: replace });
-    var outText = "";
+    var outText = document.createElement('div');
     var capcount = 0;
-    var defaultSize = 14;
-    var defaultPara = 'paragraph';
+
+    //formatting methods
+    const txt = {
+        categories: {},
+        defaultSize: '14px',
+        paragraph: 'paragraph',
+        spacing: '20px',
+        addDiv(options = {fontSize: '16px', fontWeight: 'normal', fontStyle: 'normal'}, innerHTML = null){
+            newDiv = document.createElement('div');
+            Object.entries(options).forEach((o) => {
+                newDiv.style[o[0]] = o[1];
+            });
+            if (innerHTML != null) {
+                newDiv.innerHTML = innerHTML;
+            }
+            return newDiv;
+        }
+    }
+
     //formatting each text output based on text code
     for (var n = 0; n < splitText.length; n++) {
         var input = splitText[n];
+        var out;
         var newText = input[1];
         switch (input[0]) {
             case 'Title':
             case 'Monument':
-                newText = textHTMLOutput(newText, {size: 30, bold: true});
+                out = txt.addDiv({fontSize: '30px', fontWeight: 'bold'}, newText);
                 break;
             case 'Subheader':
             case 'Part':
-                newText = textHTMLOutput(newText, {size: 16, bold: true, linebreak: false});
+                out = txt.addDiv({fontSize: txt.defaultSize, fontWeight: 'bold'}, newText);
                 break;
             case 'Header':
-                newText = textHTMLOutput(newText, {size: 24, bold: true, linebreak: false});
+                out = txt.addDiv({fontSize: '24px', fontWeight: 'bold'}, newText);
                 break;
             case 'Bibliography':
-                defaultSize = 11;
-                defaultPara = 'hanging';
-                newText = textHTMLOutput(newText, {size: 18, bold: true, linebreak: false});
+                txt.defaultSize = '11px';
+                txt.paragraph = 'hanging';
+                out = txt.addDiv({fontSize: '18px'}, newText);
                 break;
             case 'Caption':
+                out = document.createElement('div');
                 capcount += 1;
-                const capUrl = '<img src="' + url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg" + '" ' + 'width="400px"' + ' /><br>';
+                imgDiv = document.createElement('img');
+                imgDiv.src = url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg";
+                imgDiv.style.width = '400px';
+                imgDiv.className = 'image';
                 if (newText.length === 0) {
-                    newText = '<br>';
+                    capDiv = txt.addDiv({height: '20px'});
                 } else {
-                    newText = textHTMLOutput(newText, {size: 11});
+                    capDiv = txt.addDiv({fontSize: '11px'}, newText);
                 }
-                newText = capUrl + newText;
+                out.appendChild(imgDiv);
+                out.appendChild(capDiv);
                 break;
             case 'Date':
             case 'Material':
             case 'Location':
-                var nextText = splitText[n + 1];
-                switch (nextText[0]) {
-                    case 'Date':
-                    case 'Material':
-                    case 'Location':
-                        newText = textHTMLOutput(newText, {size: 11, linebreak: false});
+                out = txt.addDiv({fontSize: '11px'}, newText);
+                break;
+            case 'Body':
+                switch(txt.paragraph) {
+                    case 'indent':
+                        out = txt.addDiv({fontSize: txt.defaultSize, textIndent: '36px'}, newText);
+                        break;
+                    case 'hanging':
+                        out = txt.addDiv({fontSize: txt.defaultSize, textIndent: '-36px', paddingLeft: '36px'}, newText);
                         break;
                     default:
-                        newText = textHTMLOutput(newText, {size: 11});
+                        out = txt.addDiv({fontSize: txt.defaultSize}, newText);
                         break;
                 }
                 break;
-            case 'Body':
-                newText = textHTMLOutput(newText, {size: defaultSize, paragraph: defaultPara});
-                break;
             default:
-                newText = '<br>';
+                out = txt.addDiv({height: '20px'});
         }
-        outText += newText;
+        outText.appendChild(out);
     }
     //appending plan date and date attribution
-    outText += textHTMLOutput('---', { size: 10, linebreak: false });
-    outText += textHTMLOutput('Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann', { size: 10, linebreak: false });
-    outText += textHTMLOutput('Plan date: 2021 - 2022', { size: 10, linebreak: false });
-    //remove extra line breaks
-    while (outText.match('<br><br><br>') != null) {
-        outText = outText.replaceAll('<br><br><br>', '<br><br>');
-    }
+    var footer = ['---', 'Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann', 'Plan date: 2021 - 2022'];
+    footer.forEach((f) => {
+        var out = txt.addDiv({fontSize: '10px'}, f);
+        outText.appendChild(out);
+    }) 
     return outText;//output
 }
 
@@ -645,7 +662,11 @@ function resetScroll() {
 //packaged function for updating sidebar output
 function updateOutput(updateDiv, desc) {
     //loading text to sidebar
-    L.DomUtil.get(updateDiv).innerHTML = descriptions[desc];
+    //L.DomUtil.get(updateDiv).innerHTML = descriptions[desc];
+    if (document.getElementById(updateDiv).firstChild) {
+        document.getElementById(updateDiv).firstChild.remove();
+    }
+    document.getElementById(updateDiv).appendChild(descriptions[desc].cloneNode(true));
     //reset scroll position
     setTimeout(function () {
         resetScroll();
