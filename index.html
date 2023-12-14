@@ -946,28 +946,71 @@
 
         //html formating for text strings
         //formatting methods
-        const txt = {
+        const formatText = {
             categories: {},
-            defaultSize: '14px',
-            paragraph: 'paragraph',
-            spacing: '20px',
-            addDiv(options = {fontSize: '16px', fontWeight: 'normal', fontStyle: 'normal'}, innerHTML = null){
+            defaultOptions: {},
+            options: {},
+            addCategory(_class, options = {}, setOptions = {}, resetOptions = true){
                 newDiv = document.createElement('div');
+                newDiv.value = _class;
+                //default options
+                Object.entries(this.defaultOptions).forEach((o) => {
+                    newDiv.style[o[0]] = o[1];
+                });
+                //applying div formatting for class
                 Object.entries(options).forEach((o) => {
                     newDiv.style[o[0]] = o[1];
                 });
-                if (innerHTML != null) {
-                    newDiv.innerHTML = innerHTML;
+                //set div class
+                this.categories[_class] = {cat: newDiv, setOptions: setOptions, resetOptions: resetOptions};
+            },
+            addDiv(_class, innerHTML = null){
+                cat = this.categories[_class];
+                out = cat.cat.cloneNode(true);
+                //resetting div formatting if true
+                if(cat.resetOptions) {
+                    this.options = {};
                 }
-                return newDiv;
+                //updating div formatting
+                Object.entries(this.options).forEach((o) => {
+                    out.style[o[0]] = o[1];
+                });
+                //setting formatting for next div if present
+                if(Object.keys(cat.setOptions).length != 0) {
+                    this.options = cat.setOptions;
+                }
+                //adding text
+                if (innerHTML != null) {
+                    out.innerHTML = innerHTML;
+                }
+                return out;
+            },
+            newFormat(){
+                return jQuery.extend(true, {}, this);
             }
         }
-        
+        const txt = formatText.newFormat();
+        txt.defaultOptions = {fontSize: '14px'};
+        txt.addCategory('Title', {fontSize: '30px', fontWeight: 'bold'});
+        txt.addCategory('Monument', {fontSize: '30px', fontWeight: 'bold'});
+        txt.addCategory('Header', {fontSize: '24px', fontWeight: 'bold'});
+        txt.addCategory('Subheader', {fontWeight: 'bold'});
+        txt.addCategory('Part', {fontWeight: 'bold'});
+        txt.addCategory('Bibliography', {fontSize: '18px', fontWeight: 'bold'}, {fontSize: '11px', textIndent: '-36px', paddingLeft: '36px'});
+        txt.addCategory('Date', {fontSize: '11px'});
+        txt.addCategory('Material', {fontSize: '11px'});
+        txt.addCategory('Location', {fontSize: '11px'});
+        txt.addCategory('Caption', {fontSize: '11px'});
+        txt.addCategory('Footer', {fontSize: '10px'});
+        txt.addCategory('Body', {}, {}, false);
+        txt.addCategory('Space', {height: '20px'}, {}, false);
+
         //formatting text output for sidebar
-        function splitTxt(text, { remove = [null], replace = [[keyword = null, replacement = null]]}) {
+        function splitTxt(text, { remove = [null], replace = [[keyword = null, replacement = null]]}, src) {
             //split input text to individual lines
             var startText = text.split(/\r\n|\r|\n/);
             var splitText = [];
+            var capCount = 0;
 
             //string of keywords to remove
             var remCat = remove[0];
@@ -993,7 +1036,12 @@
                 if (newText.match(remCat) == null) { //removing lines based on removal keywords
                     var txtCode = newText.split(' ')[0];
                     if (txtCode.match(":") != null) {
-                        splitText.push([txtCode.replace(':', ''), newText.replace(txtCode, '').trim()]);
+                        out = [txtCode.replace(':', ''), newText.replace(txtCode, '').trim()];
+                        if (out[0] == 'Caption') {
+                            capCount++;
+                            out.push(src + "_Image" + capCount + ".jpg");
+                        }
+                        splitText.push(out);
                     } else {
                         if (newText.trim().length === 0) {
                             splitText.push(["Space", newText.trim()]);
@@ -1020,71 +1068,24 @@
         }
 
         function outText(desc, url, text, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
-            var splitText = splitTxt(text, { remove: remove, replace: replace });
+            var splitText = splitTxt(text, { remove: remove, replace: replace }, url + desc + "/SamoWebsite_" + desc);
             var outText = document.createElement('div');
-            var capcount = 0;
-            var defaultSize = txt.defaultSize;
-            var paragraph = txt.paragraph;
             //formatting each text output based on text code
             for (var n = 0; n < splitText.length; n++) {
                 var input = splitText[n];
                 var out;
-                var newText = input[1];
-                switch (input[0]) {
-                    case 'Title':
-                    case 'Monument':
-                        out = txt.addDiv({fontSize: '30px', fontWeight: 'bold'}, newText);
-                        break;
-                    case 'Subheader':
-                    case 'Part':
-                        out = txt.addDiv({fontSize: defaultSize, fontWeight: 'bold'}, newText);
-                        break;
-                    case 'Header':
-                        out = txt.addDiv({fontSize: '24px', fontWeight: 'bold'}, newText);
-                        break;
-                    case 'Footer':
-                        out = txt.addDiv({fontSize: '10px'}, newText);
-                        break;
-                    case 'Bibliography':
-                        defaultSize = '11px';
-                        paragraph = 'hanging';
-                        out = txt.addDiv({fontSize: '18px'}, newText);
-                        break;
-                    case 'Caption':
-                        out = document.createElement('div');
-                        capcount += 1;
-                        imgDiv = document.createElement('img');
-                        imgDiv.src = url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg";
-                        imgDiv.style.width = '400px';
-                        imgDiv.className = 'image';
-                        if (newText.length === 0) {
-                            capDiv = txt.addDiv({height: '20px'});
-                        } else {
-                            capDiv = txt.addDiv({fontSize: '11px'}, newText);
-                        }
-                        out.appendChild(imgDiv);
-                        out.appendChild(capDiv);
-                        break;
-                    case 'Date':
-                    case 'Material':
-                    case 'Location':
-                        out = txt.addDiv({fontSize: '11px'}, newText);
-                        break;
-                    case 'Body':
-                        switch(paragraph) {
-                            case 'indent':
-                                out = txt.addDiv({fontSize: defaultSize, textIndent: '36px'}, newText);
-                                break;
-                            case 'hanging':
-                                out = txt.addDiv({fontSize: defaultSize, textIndent: '-36px', paddingLeft: '36px'}, newText);
-                                break;
-                            default:
-                                out = txt.addDiv({fontSize: defaultSize}, newText);
-                                break;
-                        }
-                        break;
-                    default:
-                        out = txt.addDiv({height: '20px'});
+                //var newText = input[1];
+                if (input[0] == 'Caption') {
+                    out = document.createElement('div');
+                    imgDiv = document.createElement('img');
+                    imgDiv.src = input[2];
+                    imgDiv.style.width = '400px';
+                    imgDiv.className = 'image';
+                    capDiv = txt.addDiv(input[0], input[1]);
+                    out.appendChild(imgDiv);
+                    out.appendChild(capDiv);
+                } else {
+                    out = txt.addDiv(input[0], input[1]);
                 }
                 outText.appendChild(out);
             }
