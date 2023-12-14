@@ -509,6 +509,23 @@ function dropdownOptions(inputs, value, text) {
 }
 
 //html formating for text strings
+//formatting methods
+const txt = {
+    categories: {},
+    defaultSize: '14px',
+    paragraph: 'paragraph',
+    spacing: '20px',
+    addDiv(options = {fontSize: '16px', fontWeight: 'normal', fontStyle: 'normal'}, innerHTML = null){
+        newDiv = document.createElement('div');
+        Object.entries(options).forEach((o) => {
+            newDiv.style[o[0]] = o[1];
+        });
+        if (innerHTML != null) {
+            newDiv.innerHTML = innerHTML;
+        }
+        return newDiv;
+    }
+}
 
 //formatting text output for sidebar
 function splitTxt(text, { remove = [null], replace = [[keyword = null, replacement = null]]}) {
@@ -557,6 +574,12 @@ function splitTxt(text, { remove = [null], replace = [[keyword = null, replaceme
     while(splitText[(splitText.length - 2)][0] == 'Space' && splitText[(splitText.length - 1)][0] == 'Space') {
         splitText.pop();
     }
+
+    //adding footer to each description
+    var footer = ['---', 'Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann', 'Plan date: 2021 - 2022'];
+    footer.forEach((f) => {
+        splitText.push(['Footer', f]);
+    });
     return splitText;//output
 }
 
@@ -564,25 +587,8 @@ function outText(desc, url, text, { remove = [null], replace = [[keyword = null,
     var splitText = splitTxt(text, { remove: remove, replace: replace });
     var outText = document.createElement('div');
     var capcount = 0;
-
-    //formatting methods
-    const txt = {
-        categories: {},
-        defaultSize: '14px',
-        paragraph: 'paragraph',
-        spacing: '20px',
-        addDiv(options = {fontSize: '16px', fontWeight: 'normal', fontStyle: 'normal'}, innerHTML = null){
-            newDiv = document.createElement('div');
-            Object.entries(options).forEach((o) => {
-                newDiv.style[o[0]] = o[1];
-            });
-            if (innerHTML != null) {
-                newDiv.innerHTML = innerHTML;
-            }
-            return newDiv;
-        }
-    }
-
+    var defaultSize = txt.defaultSize;
+    var paragraph = txt.paragraph;
     //formatting each text output based on text code
     for (var n = 0; n < splitText.length; n++) {
         var input = splitText[n];
@@ -595,14 +601,17 @@ function outText(desc, url, text, { remove = [null], replace = [[keyword = null,
                 break;
             case 'Subheader':
             case 'Part':
-                out = txt.addDiv({fontSize: txt.defaultSize, fontWeight: 'bold'}, newText);
+                out = txt.addDiv({fontSize: defaultSize, fontWeight: 'bold'}, newText);
                 break;
             case 'Header':
                 out = txt.addDiv({fontSize: '24px', fontWeight: 'bold'}, newText);
                 break;
+            case 'Footer':
+                out = txt.addDiv({fontSize: '10px'}, newText);
+                break;
             case 'Bibliography':
-                txt.defaultSize = '11px';
-                txt.paragraph = 'hanging';
+                defaultSize = '11px';
+                paragraph = 'hanging';
                 out = txt.addDiv({fontSize: '18px'}, newText);
                 break;
             case 'Caption':
@@ -626,15 +635,15 @@ function outText(desc, url, text, { remove = [null], replace = [[keyword = null,
                 out = txt.addDiv({fontSize: '11px'}, newText);
                 break;
             case 'Body':
-                switch(txt.paragraph) {
+                switch(paragraph) {
                     case 'indent':
-                        out = txt.addDiv({fontSize: txt.defaultSize, textIndent: '36px'}, newText);
+                        out = txt.addDiv({fontSize: defaultSize, textIndent: '36px'}, newText);
                         break;
                     case 'hanging':
-                        out = txt.addDiv({fontSize: txt.defaultSize, textIndent: '-36px', paddingLeft: '36px'}, newText);
+                        out = txt.addDiv({fontSize: defaultSize, textIndent: '-36px', paddingLeft: '36px'}, newText);
                         break;
                     default:
-                        out = txt.addDiv({fontSize: txt.defaultSize}, newText);
+                        out = txt.addDiv({fontSize: defaultSize}, newText);
                         break;
                 }
                 break;
@@ -643,12 +652,6 @@ function outText(desc, url, text, { remove = [null], replace = [[keyword = null,
         }
         outText.appendChild(out);
     }
-    //appending plan date and date attribution
-    var footer = ['---', 'Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann', 'Plan date: 2021 - 2022'];
-    footer.forEach((f) => {
-        var out = txt.addDiv({fontSize: '10px'}, f);
-        outText.appendChild(out);
-    }) 
     return outText;//output
 }
 
