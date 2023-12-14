@@ -950,6 +950,10 @@
             categories: {},
             defaultOptions: {},
             options: {},
+            texts: {},
+            text: null,
+            remove: [],
+            replace: [],
             addCategory(_class, options = {}, setOptions = {}, resetOptions = true){
                 newDiv = document.createElement('div');
                 newDiv.value = _class;
@@ -964,8 +968,13 @@
                 //set div class
                 this.categories[_class] = {cat: newDiv, setOptions: setOptions, resetOptions: resetOptions};
             },
-            addDiv(_class, innerHTML = null){
-                cat = this.categories[_class];
+            addDiv(_class, innerHTML = null, src = null){
+                var cat;
+                if (this.categories[_class]) {
+                    cat = this.categories[_class];
+                } else {
+                    cat = this.categories['_default'];
+                }
                 out = cat.cat.cloneNode(true);
                 //resetting div formatting if true
                 if(cat.resetOptions) {
@@ -983,14 +992,61 @@
                 if (innerHTML != null) {
                     out.innerHTML = innerHTML;
                 }
-                return out;
+                //adding an image, if src is provided
+                if (src != null) {
+                    container = document.createElement('div');
+                    imgDiv = document.createElement('img');
+                    imgDiv.src = src;
+                    imgDiv.className = 'image';
+                    container.appendChild(imgDiv);
+                    container.appendChild(out);
+                    return container;
+                } else {
+                    return out;
+                }
+                
+            },
+            loadText(desc, url){
+                var parent = this;
+                $.ajax({
+                    url: url,
+                    dataType: "text"
+                }).then(function(response) {
+                    parent.newText = [desc, response.split(/\r\n|\r|\n/)];
+                });
+            },
+            update(desc, text){
+                //console.log(text);
+                //console.log('Ready!');
+                var clean = text;
+                
+                //output
+                this.texts[desc] = clean;
             },
             newFormat(){
-                return jQuery.extend(true, {}, this);
+                var newObj = jQuery.extend(true, {}, this);
+                Object.defineProperty(newObj, 'newText', {
+                    get: function() {
+                        return this.texts;
+                    },
+                    set: function(newProp) {
+                        this.texts[newProp[0]] = newProp[1];
+                        this.update(newProp[0], newProp[1]);
+                    },
+                    enumerable: true
+                });
+                newObj.addCategory('_default');
+                return newObj;
             }
         }
+
+        //creating text reader/formatter
         const txt = formatText.newFormat();
+
+        //setting format parameters
         txt.defaultOptions = {fontSize: '14px'};
+        txt.remove = remove;
+        txt.replace = replace;
         txt.addCategory('Title', {fontSize: '30px', fontWeight: 'bold'});
         txt.addCategory('Monument', {fontSize: '30px', fontWeight: 'bold'});
         txt.addCategory('Header', {fontSize: '24px', fontWeight: 'bold'});
@@ -1004,6 +1060,12 @@
         txt.addCategory('Footer', {fontSize: '10px'});
         txt.addCategory('Body', {}, {}, false);
         txt.addCategory('Space', {height: '20px'}, {}, false);
+
+        ['(0)Introduction','(11a)Stoa'].forEach((e) => {
+            txt.loadText(e, url + e + "/SamoWebsite_" + e + ".txt");
+        });
+        //DETERMINE BEST WAY TO HAVE ALL OF THE TEXTS EITHER PRE-LOADED OR LOAD ON FUNCTION RUN
+        //HOW TO WORK FOR BOTH MANUAL ENTRIES OR DYNAMIC READ/LOAD        
 
         //formatting text output for sidebar
         function splitTxt(text, { remove = [null], replace = [[keyword = null, replacement = null]]}, src) {
@@ -1068,25 +1130,13 @@
         }
 
         function outText(desc, url, text, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
+            //input text
             var splitText = splitTxt(text, { remove: remove, replace: replace }, url + desc + "/SamoWebsite_" + desc);
             var outText = document.createElement('div');
             //formatting each text output based on text code
             for (var n = 0; n < splitText.length; n++) {
                 var input = splitText[n];
-                var out;
-                //var newText = input[1];
-                if (input[0] == 'Caption') {
-                    out = document.createElement('div');
-                    imgDiv = document.createElement('img');
-                    imgDiv.src = input[2];
-                    imgDiv.style.width = '400px';
-                    imgDiv.className = 'image';
-                    capDiv = txt.addDiv(input[0], input[1]);
-                    out.appendChild(imgDiv);
-                    out.appendChild(capDiv);
-                } else {
-                    out = txt.addDiv(input[0], input[1]);
-                }
+                var out = txt.addDiv(input[0], input[1], input[2]);
                 outText.appendChild(out);
             }
             return outText;//output
