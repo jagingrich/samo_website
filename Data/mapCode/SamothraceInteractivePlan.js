@@ -18,8 +18,33 @@ function updateInputs() {
     defaultWebID = '(0)Introduction';
     dropdownDefault = ['<option value="' + defaultWebID + '" disabled selected hidden>Select Monument</option>',
     '<option value="' + defaultWebID + '">About: Interactive Plan</option>'];
-    remove = ['JAG_UNEDITED', 'Glennon'];
-    replace = [['Bibliography:', 'Bibliography: Selected Bibliography']];
+    //remove = ['JAG_UNEDITED', 'Glennon'];
+    //replace = [['Bibliography:', 'Bibliography: Selected Bibliography']];
+
+    //setting text format parameters
+    txt.defaultOptions = {fontSize: '14px'};
+    txt.remove = ['JAG_UNEDITED', 'Glennon'];
+    txt.replace = {key: 'Bibliography:', replacement: 'Bibliography: Selected Bibliography'};
+    txt.imageCode = 'Caption';
+    txt.footer = ['---', 'Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann', 'Plan date: 2021 - 2022'];
+    txt.addCategory('Title', {fontSize: '30px', fontWeight: 'bold'});
+    txt.addCategory('Monument', {fontSize: '30px', fontWeight: 'bold'});
+    txt.addCategory('Header', {fontSize: '24px', fontWeight: 'bold'});
+    txt.addCategory('Subheader', {fontWeight: 'bold'});
+    txt.addCategory('Part', {fontWeight: 'bold'});
+    txt.addCategory('Bibliography', {fontSize: '18px', fontWeight: 'bold'}, {fontSize: '11px', textIndent: '-36px', paddingLeft: '36px'});
+    txt.addCategory('Date', {fontSize: '11px'});
+    txt.addCategory('Material', {fontSize: '11px'});
+    txt.addCategory('Location', {fontSize: '11px'});
+    txt.addCategory('Caption', {fontSize: '11px'});
+    txt.addCategory('_footer', {fontSize: '10px'});
+    txt.addCategory('_default', {}, {}, false);
+    txt.addCategory('_space', {height: '20px'}, {}, false);
+    txt._onLoad = function () {
+        updateProgress(tileLayers.length + shpFiles.length + 1);
+        updateOutput(sidebarText, defaultWebID);
+        updateWidth(); //updating window width
+    }
 }
 
 //creating divs for parts of interactive plan in map, overlay divs
@@ -128,7 +153,7 @@ function selectFeature(webCode) {
     updateText(webCode);
 
     //zoom to selection
-    zoomToFeature(getAllFeatures(null, control), webCode);
+    zoomToFeature(getAllFeatures(control), webCode);
 }
 
 //layer responsiveness
@@ -166,29 +191,38 @@ function updateText(webCode) {
 }
 
 //finding all features in map
-function getAllFeatures(inputMap = null, layerControl = null) {
+function getAllFeatures(inputs, leaflet = false) {
     var feats = [];
-    if (inputMap != null && typeof (inputMap) == 'object') {
-        Object.values(inputMap._layers).forEach(function (l) {
-            var keys = Object.keys(l);
-            if (keys.includes('feature') && !feats.includes(l.feature)) {
-                feats.push(l.feature)
-            }
-        });
-    }
-    if (layerControl != null && typeof (layerControl) == 'object') {
-        layerControl['_layers'].forEach(function (c) {
-            Object.values(c.layer._layers).forEach(function (l) {
-                var keys = Object.keys(l);
-                if (keys.includes('_layers')) {
-                    Object.values(l['_layers']).forEach(function (f) {
-                        if (!feats.includes(f.feature)) {
-                            feats.push(f.feature)
-                        }
-                    });
+    function checkLayers(obj, out) {
+        if (Object.keys(obj).includes('_layers')) {
+            Object.values(obj._layers).forEach(function (f) {
+                if (Object.keys(f).includes('feature') && !out.includes(f.feature)) {
+                    if (leaflet) {
+                        out.push(f);
+                    } else {
+                        out.push(f.feature);
+                    }                            
                 }
             });
+        }
+    }
+    function checkInputs(obj) {
+        if (Array.isArray(obj._layers)){
+            obj._layers.forEach((l) => {
+                Object.values(l.layer._layers).forEach(function (s) {
+                    checkLayers(s, feats);
+                });
+            });
+        } else if (typeof (obj) == 'object') {
+            checkLayers(obj, feats);
+        }
+    }
+    if (Array.isArray(inputs)){
+        inputs.forEach((i) => {
+            checkInputs(i);
         });
+    } else if (typeof (inputs) == 'object') {
+        checkInputs(inputs);
     }
     return feats;
 }
@@ -387,7 +421,7 @@ function addRecenterControl() {
                 } else {
                     webCode = dropdown[index].value;
                 }
-                zoomToFeature(getAllFeatures(null, control), webCode);
+                zoomToFeature(getAllFeatures(control), webCode);
             });
 
             return this.link;
@@ -466,11 +500,11 @@ function updateWidth() {
 }
 
 //function for unique features from JSON input
-function uniqueFeatures(features, id, sort = null, sortType = 'Number') {
+function uniqueFeatures(features, id, sort = null, sortType = 'Number', _return = 'All') {
     var feats = [];
     var ids = [];
     features.forEach(function (f) {
-        if (!ids.includes(f.properties[id])) {
+        if (Object.keys(f.properties).includes(id) && !ids.includes(f.properties[id])) {
             feats.push(f);
             ids.push(f.properties[id])
         }
@@ -498,7 +532,17 @@ function uniqueFeatures(features, id, sort = null, sortType = 'Number') {
             return 0;
         });
     }
-    return feats;
+    if (_return == 'All') {
+        return feats;
+    } else {
+        out = [];
+        feats.forEach((f) => {
+            if(Object.keys(f.properties).includes(_return)) {
+                out.push(f.properties[_return]);
+            }
+        });
+        return out;
+    }
 }
 
 //generating dropdown menu options from JSON inputs
@@ -510,149 +554,206 @@ function dropdownOptions(inputs, value, text) {
 
 //html formating for text strings
 //formatting methods
-const txt = {
+const formatText = {
     categories: {},
-    defaultSize: '14px',
-    paragraph: 'paragraph',
-    spacing: '20px',
-    addDiv(options = {fontSize: '16px', fontWeight: 'normal', fontStyle: 'normal'}, innerHTML = null){
+    defaultOptions: {},
+    options: {},
+    texts: {},
+    count: {total: 0, outOf: null, counting: false},
+    remove: [],
+    replace: [],
+    header: null,
+    footer: null,
+    addCategory(_class, options = {}, setOptions = {}, resetOptions = true){
         newDiv = document.createElement('div');
+        newDiv.value = _class;
+        //default options
+        Object.entries(this.defaultOptions).forEach((o) => {
+            newDiv.style[o[0]] = o[1];
+        });
+        //applying div formatting for class
         Object.entries(options).forEach((o) => {
             newDiv.style[o[0]] = o[1];
         });
+        //set div class
+        this.categories[_class] = {cat: newDiv, setOptions: setOptions, resetOptions: resetOptions};
+    },
+    addDiv(_class, innerHTML = null, src = null){
+        var cat;
+        if (this.categories[_class]) {
+            cat = this.categories[_class];
+        } else {
+            cat = this.categories['_default'];
+        }
+        var out = cat.cat.cloneNode(true);
+        //resetting div formatting if true
+        if(cat.resetOptions) {
+            this.options = {};
+        }
+        //updating div formatting
+        Object.entries(this.options).forEach((o) => {
+            out.style[o[0]] = o[1];
+        });
+        //setting formatting for next div if present
+        if(Object.keys(cat.setOptions).length != 0) {
+            this.options = cat.setOptions;
+        }
+        //adding text
         if (innerHTML != null) {
-            newDiv.innerHTML = innerHTML;
+            out.innerHTML = innerHTML;
         }
-        return newDiv;
-    }
-}
-
-//formatting text output for sidebar
-function splitTxt(text, { remove = [null], replace = [[keyword = null, replacement = null]]}) {
-    //split input text to individual lines
-    var startText = text.split(/\r\n|\r|\n/);
-    var splitText = [];
-
-    //string of keywords to remove
-    var remCat = remove[0];
-    if (remove.length > 1) {
-        for (var c = 1; c < remove.length; c++) {
-            remCat += '|' + remove[c];
+        //adding an image, if src is provided
+        if (src != null) {
+            container = document.createElement('div');
+            imgDiv = document.createElement('img');
+            imgDiv.src = src;
+            imgDiv.className = 'image';
+            container.appendChild(imgDiv);
+            container.appendChild(out);
+            return container;
+        } else {
+            return out;
         }
-    }
-
-    //searching each line for replacement keywords, text codes
-    for (var n = 0; n < startText.length; n++) {
-        var newText = startText[n].trim();
-
-        //replacing lines based on replacement keywords
-        for (var r = 0; r < replace.length; r++) {
-            var repSub = replace[r];
-            if (newText.match(repSub[0]) != null) {
-                newText = repSub[1];
+        
+    },
+    pullTextAndFormat(desc, url){
+        const parent = this;
+        $.ajax({
+            url: url,
+            dataType: "text"
+        }).then(function(response) {
+            //splitting and cleaning text
+            out = response.split(/\r\n|\r|\n/); //split on line breaks
+            //removing lines based on input remove keywords
+            if (Array.isArray(parent.remove)){
+                parent.remove.forEach((r) => {
+                    out = out.filter(x => x.match(r) == null);
+                });
+            } else if (typeof (parent.remove) == 'string') {
+                out = out.filter(x => x.match(parent.remove) == null);
             }
-        }
-
-        //generating line/paragraph codes
-        if (newText.match(remCat) == null) { //removing lines based on removal keywords
-            var txtCode = newText.split(' ')[0];
-            if (txtCode.match(":") != null) {
-                splitText.push([txtCode.replace(':', ''), newText.replace(txtCode, '').trim()]);
-            } else {
-                if (newText.trim().length === 0) {
-                    splitText.push(["Space", newText.trim()]);
-                } else {
-                    splitText.push(["Body", newText.trim()]);
+            //replacing lines based on input replace keywords and replacement lines
+            if (Array.isArray(parent.replace)){
+                parent.replace.forEach((r) => {
+                    out.forEach((item, i) => { if (item.match(r.key) != null) out[i] = r.replacement; });
+                });
+            } else if (typeof (parent.replace) == 'object') {
+                out.forEach((item, i) => { if (item.match(parent.replace.key) != null) out[i] = parent.replace.replacement; });
+            }
+            //generating linetype codes from line headers
+            var capCount = 1;
+            out.forEach((item, i) => {
+                //splitting off code
+                var code = item.split(' ')[0];
+                if (code.match(":") != null) {
+                    newLine = {Code: code.replace(':', ''), Text: item.replace(code, '').trim()};
+                    //code case for images
+                    if (Array.isArray(parent.imageCode)){ //multiple image codes
+                        parent.imageCode.forEach((r) => {
+                            if (newLine.Code == r) {
+                                newLine.src = url.replace('.txt', '_Image' + capCount + '.jpg');
+                                capCount++;
+                            }
+                        });
+                    } else if (typeof (parent.imageCode) == 'string') { //single image code
+                        if (newLine.Code == parent.imageCode) {
+                            newLine.src = url.replace('.txt', '_Image' + capCount + '.jpg');
+                            capCount++;
+                        }
+                    }
+                    out[i] = newLine;
+                } else { //defaults: strings vs. empty strings
+                    if (item.trim().length === 0) {
+                        newLine = {Code: '_space', Text: item.trim()};
+                    } else {
+                        newLine = {Code: '_default', Text: item.trim()};
+                    }
+                    out[i] = newLine;
+                }
+            });
+            //removing white space at top and bottom of text
+            while(out[0].Code == '_space' ) { //space at top
+                out.shift();
+            }
+            //space at bottom
+            while(out[(out.length - 1)].Code == '_space' && out[(out.length - 2)].Code == '_space') {
+                out.pop();
+            }
+            //adding header to each text if provided
+            if (parent.header != null && parent.header.length > 0){
+                var header = [];
+                if (Array.isArray(parent.header)){
+                    parent.header.forEach((h) => {
+                        header.push({Code: '_header', Text: h});
+                    });
+                } else if (typeof (parent.header) == 'string') {
+                    header.push({Code: '_header', Text: parent.header});
+                }
+                out = [...header, ...out];
+            }
+            //adding footer to each text if provided
+            if (parent.footer != null && parent.footer.length > 0){
+                if (Array.isArray(parent.footer)){
+                    parent.footer.forEach((f) => {
+                        out.push({Code: '_footer', Text: f});
+                    });
+                } else if (typeof (parent.footer) == 'string') {
+                    out.push({Code: '_footer', Text: parent.footer});
                 }
             }
+            //formatting text lines as html divs
+            var outDiv = document.createElement('div');
+            //formatting each text output based on text code
+            out.slice().forEach((o) => outDiv.appendChild(txt.addDiv(o.Code, o.Text, o.src)) );
+            //output
+            parent.texts[desc] = {WebCode: desc, Text: out, Div: outDiv, Url: url};
+        }).always(function(){
+            if (parent.count.counting) {
+                parent.newText = parent.newText + 1;
+            }
+        });
+    },
+    loadText(inputs) {
+        //reading text descriptions for each item in inputs
+        if (Array.isArray(inputs)){
+            this.count.outOf = inputs.length;
+            this.count.counting = true;
+            inputs.forEach((f) => {
+                this.pullTextAndFormat(f.Description, f.Url);
+            });
+        } else if (typeof (inputs) == 'object') {
+            this.count.outOf = Object.keys(inputs).length;
+            this.count.counting = true;
+            Object.values(inputs).forEach((f) => {
+                this.pullTextAndFormat(f.Description, f.Url);
+            });
         }
-    }
-    //removing white space at top and bottom of text
-    while(splitText[0][0] == 'Space' ) {
-        splitText.shift();
-    }
-    while(splitText[(splitText.length - 2)][0] == 'Space' && splitText[(splitText.length - 1)][0] == 'Space') {
-        splitText.pop();
-    }
-
-    //adding footer to each description
-    var footer = ['---', 'Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann', 'Plan date: 2021 - 2022'];
-    footer.forEach((f) => {
-        splitText.push(['Footer', f]);
-    });
-    return splitText;//output
-}
-
-function outText(desc, url, text, { remove = [null], replace = [[keyword = null, replacement = null]] }) {
-    var splitText = splitTxt(text, { remove: remove, replace: replace });
-    var outText = document.createElement('div');
-    var capcount = 0;
-    var defaultSize = txt.defaultSize;
-    var paragraph = txt.paragraph;
-    //formatting each text output based on text code
-    for (var n = 0; n < splitText.length; n++) {
-        var input = splitText[n];
-        var out;
-        var newText = input[1];
-        switch (input[0]) {
-            case 'Title':
-            case 'Monument':
-                out = txt.addDiv({fontSize: '30px', fontWeight: 'bold'}, newText);
-                break;
-            case 'Subheader':
-            case 'Part':
-                out = txt.addDiv({fontSize: defaultSize, fontWeight: 'bold'}, newText);
-                break;
-            case 'Header':
-                out = txt.addDiv({fontSize: '24px', fontWeight: 'bold'}, newText);
-                break;
-            case 'Footer':
-                out = txt.addDiv({fontSize: '10px'}, newText);
-                break;
-            case 'Bibliography':
-                defaultSize = '11px';
-                paragraph = 'hanging';
-                out = txt.addDiv({fontSize: '18px'}, newText);
-                break;
-            case 'Caption':
-                out = document.createElement('div');
-                capcount += 1;
-                imgDiv = document.createElement('img');
-                imgDiv.src = url + desc + "/SamoWebsite_" + desc + "_Image" + capcount + ".jpg";
-                imgDiv.style.width = '400px';
-                imgDiv.className = 'image';
-                if (newText.length === 0) {
-                    capDiv = txt.addDiv({height: '20px'});
-                } else {
-                    capDiv = txt.addDiv({fontSize: '11px'}, newText);
-                }
-                out.appendChild(imgDiv);
-                out.appendChild(capDiv);
-                break;
-            case 'Date':
-            case 'Material':
-            case 'Location':
-                out = txt.addDiv({fontSize: '11px'}, newText);
-                break;
-            case 'Body':
-                switch(paragraph) {
-                    case 'indent':
-                        out = txt.addDiv({fontSize: defaultSize, textIndent: '36px'}, newText);
-                        break;
-                    case 'hanging':
-                        out = txt.addDiv({fontSize: defaultSize, textIndent: '-36px', paddingLeft: '36px'}, newText);
-                        break;
-                    default:
-                        out = txt.addDiv({fontSize: defaultSize}, newText);
-                        break;
-                }
-                break;
-            default:
-                out = txt.addDiv({height: '20px'});
+    },
+    _onLoad(){},
+    update(text){
+        if (this.count.total == this.count.outOf){
+            this._onLoad();
+            this.count.counting = false;
         }
-        outText.appendChild(out);
+    },
+    newFormat(){
+        var newObj = jQuery.extend(true, {}, this);
+        Object.defineProperty(newObj, 'newText', {
+            get: function() {
+                return this.count.total;
+            },
+            set: function(newProp) {
+                this.count.total = newProp;
+                this.update(newProp);
+            },
+            enumerable: true
+        });
+        newObj.addCategory('_default');
+        newObj.addCategory('_space');
+        newObj.addCategory('_header');
+        newObj.addCategory('_footer');
+        return newObj;
     }
-    return outText;//output
 }
 
 //reseting scroll position on layer click
@@ -665,49 +766,14 @@ function resetScroll() {
 //packaged function for updating sidebar output
 function updateOutput(updateDiv, desc) {
     //loading text to sidebar
-    //L.DomUtil.get(updateDiv).innerHTML = descriptions[desc];
     if (document.getElementById(updateDiv).firstChild) {
         document.getElementById(updateDiv).firstChild.remove();
     }
-    document.getElementById(updateDiv).appendChild(descriptions[desc].cloneNode(true));
+    document.getElementById(updateDiv).appendChild(txt.texts[desc].Div.cloneNode(true));
     //reset scroll position
     setTimeout(function () {
         resetScroll();
     }, 10);
-}
-
-//function to load and format descriptions 
-function loadDescriptions() {
-    var names = [];
-    var texts = [];
-    var textFiles = [];
-    //pulling text description from url
-    function readTxt(desc, url) {
-        return $.ajax({
-            url: url + desc + "/SamoWebsite_" + desc + ".txt",
-            dataType: "text",
-            success: function (response) {
-                textFiles.push([desc, response]);
-            }
-        });
-    }
-    //reading text descriptions for each monument
-    var feats = [defaultWebID];
-    uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label').forEach((f) => feats.push(f.properties.WebCode));
-    feats.forEach(function (f) {
-        texts.push(readTxt(f, url));
-    });
-    //object containing each description and key
-    $.when.apply(null, texts).always(function (response) {
-        var newTexts = {};
-        textFiles.forEach(function (t) {
-            newTexts[t[0]] = outText(t[0], url, t[1], { remove: remove, replace: replace });
-        });
-        descriptions = newTexts;
-        updateProgress(tileLayers.length + shpFiles.length + 1);
-        updateOutput(sidebarText, defaultWebID);
-        updateWidth();
-    });
 }
 
 //updating progress bar as layers/descriptions load
