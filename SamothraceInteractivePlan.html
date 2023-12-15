@@ -15,6 +15,7 @@
     <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
 
     <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/formatText_js.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jagingrich/samo_website/Data/mapCode/SamothraceInteractivePlan.css" />
 
     <style>
@@ -120,38 +121,30 @@
                         layers = [...tileLayers, ...shpFiles],
                         groups = generateLayerGroups({ groups: groups }),
                         functionOnLoad = function () {
-                            window.control._layers.forEach((l) => {
-                                Object.values(l.layer._layers).forEach((e) => {
-                                    if (!(Object.keys(e)).includes('_url')) {
-                                        Object.values(e._layers).forEach((v) => {
-                                            v.bindTooltipDelayed(v.feature.properties.Name, 
-                                            {
-                                                sticky: true,
-                                                className: 'leaflet-textTitle' 
-                                            });
-                                        });
-                                    }
-                                });
+                            getAllFeatures(control, true).forEach((v) => {
+                                v.bindTooltipDelayed(v.feature.properties.Name, 
+                                { sticky: true, className: 'leaflet-textTitle' });
                             });
                             divCreate(divName = dropdownName, //adding dropdown to map
                                 divContainer = 'dropdown',
                                 type = 'select',
                                 functionOnCreate = function (newDiv) {
                                     //creating dropdown
-                                    options = [...dropdownDefault, ...dropdownOptions(uniqueFeatures(getAllFeatures(null, control), 'fullName', 'Label'), 'WebCode', 'fullName')];
+                                    options = [...dropdownDefault, ...dropdownOptions(uniqueFeatures(getAllFeatures(control), 'fullName', 'Label'), 'WebCode', 'fullName')];
                                     options.forEach((option) => newDiv.innerHTML += option);
                                     //dropdown appearance/settings
                                     newDiv.addEventListener('change', onSelect);
                                     newDiv.title = "Select Monument Name to Zoom In";
                                 });
-                            loadDescriptions(); //loading and formatting text descriptions for monuments
+                            var feats = [{Description: defaultWebID, Url: url + defaultWebID + "/SamoWebsite_" + defaultWebID + '.txt'}];
+                            uniqueFeatures(getAllFeatures(control), 'fullName', 'Label', 'Number', 'WebCode').forEach((f) => feats.push({Description: f, Url: url + f + "/SamoWebsite_" + f + '.txt'}));
+                            txt.loadText(feats); //loading and formatting text descriptions for monuments
                             addLegend(); //adding legend to map
                             addRefresh(); //adding refresh button
                             addRecenterControl(); //adding recentering control to map
-                            updateWidth(); //updating window width
                             map.invalidateSize(); //recentering map in window
                             map._size.x = roundWidth()[2];
-                            map.setMaxBounds(mapbounds);
+                            map.setMaxBounds(mapbounds.pad(0.5));
                         }
                     );
                 }
@@ -185,6 +178,9 @@
         var width = 'width="' + roundWidth()[1] + 'px"';
         var w = window.innerWidth;
         var layersCount = 0;
+
+        //creating text reader/formatter
+        const txt = formatText.newFormat();
 
         //pulling updated initialization vars
         updateInputs();
