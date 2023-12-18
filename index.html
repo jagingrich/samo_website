@@ -319,27 +319,26 @@
 
         //setting initial map variables
         var shpFiles = [];
-        var groups = [];
-        var tileLayers = [];
-        var shpLayers = [];
-        var attribution;
-        var dropdownName;
+        var groups = [["Actual State Plan", "ActualState"], ["Restored State Plan", "RestoredState"]];
+        var tileLayers = ['https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStatePlan_3857/{z}/{x}/{y}.png',
+                'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStateMonuments_3857/{z}/{x}/{y}.png',
+                'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png',
+                'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png'];
+        var shpLayers = ['https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.shp',
+                'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.shp'];
+        var attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace';
+        var dropdownName = 'dropdown-contents';
 
         //setting description creation vars
         var sidebarText = 'sidebar-content';
-        var url;
+        var url = 'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapDescriptions/';
         var defaultWebID = '(0)Introduction';
         var webID = defaultWebID;
-        var descriptions;
-        var dropdownDefault = [];
-        var remove = [];
-        var replace = [];
+        var dropdownDefault = ['<option value="' + defaultWebID + '" disabled selected hidden>Select Monument</option>',
+            '<option value="' + defaultWebID + '">About: Interactive Plan</option>'];
         var width = 'width="' + roundWidth()[1] + 'px"';
         var w = window.innerWidth;
         var layersCount = 0;
-
-        //pulling updated initialization vars
-        updateInputs();
 
         //creating divs for parts of interactive plan
         divCreate('dropdown', 'map');
@@ -428,27 +427,6 @@
 
         //FUNCTIONS THAT CREATE AND RUN THE SANCTUARY OF THE GREAT GODS SAMOTHRACE INTERACTIVE MAP PLAN
         //Jared Gingrich 2023
-
-        //update initial inputs for layers, groupings, urls, etc.
-        function updateInputs() {
-            groups = [["Actual State Plan", "ActualState"], ["Restored State Plan", "RestoredState"]];
-            tileLayers = ['https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStatePlan_3857/{z}/{x}/{y}.png',
-                'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStateMonuments_3857/{z}/{x}/{y}.png',
-                'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png',
-                'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png'];
-            attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace';
-            shpLayers = ['https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.shp',
-                'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.shp'];
-
-            dropdownName = 'dropdown-contents';
-            //setting description creation vars
-            url = 'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapDescriptions/';
-            defaultWebID = '(0)Introduction';
-            dropdownDefault = ['<option value="' + defaultWebID + '" disabled selected hidden>Select Monument</option>',
-            '<option value="' + defaultWebID + '">About: Interactive Plan</option>'];
-            remove = ['JAG_UNEDITED', 'Glennon'];
-            replace = [['Bibliography:', 'Bibliography: Selected Bibliography']];
-        }
 
         //creating divs for parts of interactive plan in map, overlay divs
         function divCreate(divName, divContainer, type = 'div', functionOnCreate = null) {
@@ -990,21 +968,13 @@
                 }
                 var out = cat.cat.cloneNode(true);
                 //resetting div formatting if true
-                if(cat.resetOptions) {
-                    this.options = {};
-                }
+                if(cat.resetOptions) { this.options = {}; }
                 //updating div formatting
-                Object.entries(this.options).forEach((o) => {
-                    out.style[o[0]] = o[1];
-                });
+                Object.entries(this.options).forEach((o) => out.style[o[0]] = o[1] );
                 //setting formatting for next div if present
-                if(Object.keys(cat.setOptions).length != 0) {
-                    this.options = cat.setOptions;
-                }
+                if(Object.keys(cat.setOptions).length != 0) { this.options = cat.setOptions; }
                 //adding text
-                if (innerHTML != null) {
-                    out.innerHTML = innerHTML;
-                }
+                if (innerHTML != null) { out.innerHTML = innerHTML; }
                 //adding an image, if src is provided
                 if (src != null) {
                     container = document.createElement('div');
@@ -1075,22 +1045,25 @@
                         }
                     });
                     //removing white space at top and bottom of text
-                    while(out[0].Code == '_space' ) { //space at top
-                        out.shift();
-                    }
-                    //space at bottom
-                    while(out[(out.length - 1)].Code == '_space' && out[(out.length - 2)].Code == '_space') {
-                        out.pop();
-                    }
+                    while(out[0].Code == '_space' ) { out.shift(); } //space at top
+                    while(out[(out.length - 1)].Code == '_space') { out.pop(); } //space at bottom
                     //adding header to each text if provided
                     if (parent.header != null && parent.header.length > 0){
                         var header = [];
                         if (Array.isArray(parent.header)){
                             parent.header.forEach((h) => {
-                                header.push({Code: '_header', Text: h});
+                                if (h.trim().length === 0) {
+                                    header.push({Code: '_space', Text: h.trim()});
+                                } else {
+                                    header.push({Code: '_header', Text: h.trim()});
+                                }
                             });
                         } else if (typeof (parent.header) == 'string') {
-                            header.push({Code: '_header', Text: parent.header});
+                            if (parent.header.trim().length === 0) {
+                                header.push({Code: '_space', Text: parent.header.trim()});
+                            } else {
+                                header.push({Code: '_header', Text: parent.header.trim()});
+                            }
                         }
                         out = [...header, ...out];
                     }
@@ -1098,10 +1071,18 @@
                     if (parent.footer != null && parent.footer.length > 0){
                         if (Array.isArray(parent.footer)){
                             parent.footer.forEach((f) => {
-                                out.push({Code: '_footer', Text: f});
+                                if (f.trim().length === 0) {
+                                    out.push({Code: '_space', Text: f.trim()});
+                                } else {
+                                    out.push({Code: '_footer', Text: f.trim()});
+                                }
                             });
                         } else if (typeof (parent.footer) == 'string') {
-                            out.push({Code: '_footer', Text: parent.footer});
+                            if (parent.footer.trim().length === 0) {
+                                out.push({Code: '_space', Text: parent.footer.trim()});
+                            } else {
+                                out.push({Code: '_footer', Text: parent.footer.trim()});
+                            }
                         }
                     }
                     //formatting text lines as html divs
@@ -1164,10 +1145,10 @@
 
         //setting format parameters
         txt.defaultOptions = {fontSize: '14px'};
-        txt.remove = remove;
+        txt.remove = ['JAG_UNEDITED', 'Glennon'];
         txt.replace = {key: 'Bibliography:', replacement: 'Bibliography: Selected Bibliography'};
         txt.imageCode = 'Caption';
-        txt.footer = ['---', 'Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann', 'Plan date: 2021 - 2022'];
+        txt.footer = ['', '---', 'Dates provided in the legend based on interpretations by Karl Lehmann and Phyllis Williams Lehmann', 'Plan date: 2021 - 2022'];
         txt.addCategory('Title', {fontSize: '30px', fontWeight: 'bold'});
         txt.addCategory('Monument', {fontSize: '30px', fontWeight: 'bold'});
         txt.addCategory('Header', {fontSize: '24px', fontWeight: 'bold'});
