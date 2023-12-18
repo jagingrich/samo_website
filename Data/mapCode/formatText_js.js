@@ -63,21 +63,13 @@ const formatText = {
         }
         var out = cat.cat.cloneNode(true);
         //resetting div formatting if true
-        if(cat.resetOptions) {
-            this.options = {};
-        }
+        if(cat.resetOptions) { this.options = {}; }
         //updating div formatting
-        Object.entries(this.options).forEach((o) => {
-            out.style[o[0]] = o[1];
-        });
+        Object.entries(this.options).forEach((o) => out.style[o[0]] = o[1] );
         //setting formatting for next div if present
-        if(Object.keys(cat.setOptions).length != 0) {
-            this.options = cat.setOptions;
-        }
+        if(Object.keys(cat.setOptions).length != 0) { this.options = cat.setOptions; }
         //adding text
-        if (innerHTML != null) {
-            out.innerHTML = innerHTML;
-        }
+        if (innerHTML != null) { out.innerHTML = innerHTML; }
         //adding an image, if src is provided
         if (src != null) {
             container = document.createElement('div');
@@ -148,22 +140,25 @@ const formatText = {
                 }
             });
             //removing white space at top and bottom of text
-            while(out[0].Code == '_space' ) { //space at top
-                out.shift();
-            }
-            //space at bottom
-            while(out[(out.length - 1)].Code == '_space' && out[(out.length - 2)].Code == '_space') {
-                out.pop();
-            }
+            while(out[0].Code == '_space' ) { out.shift(); } //space at top
+            while(out[(out.length - 1)].Code == '_space') { out.pop(); } //space at bottom
             //adding header to each text if provided
             if (parent.header != null && parent.header.length > 0){
                 var header = [];
                 if (Array.isArray(parent.header)){
                     parent.header.forEach((h) => {
-                        header.push({Code: '_header', Text: h});
+                        if (h.trim().length === 0) {
+                            header.push({Code: '_space', Text: h.trim()});
+                        } else {
+                            header.push({Code: '_header', Text: h.trim()});
+                        }
                     });
                 } else if (typeof (parent.header) == 'string') {
-                    header.push({Code: '_header', Text: parent.header});
+                    if (parent.header.trim().length === 0) {
+                        header.push({Code: '_space', Text: parent.header.trim()});
+                    } else {
+                        header.push({Code: '_header', Text: parent.header.trim()});
+                    }
                 }
                 out = [...header, ...out];
             }
@@ -171,10 +166,18 @@ const formatText = {
             if (parent.footer != null && parent.footer.length > 0){
                 if (Array.isArray(parent.footer)){
                     parent.footer.forEach((f) => {
-                        out.push({Code: '_footer', Text: f});
+                        if (f.trim().length === 0) {
+                            out.push({Code: '_space', Text: f.trim()});
+                        } else {
+                            out.push({Code: '_footer', Text: f.trim()});
+                        }
                     });
                 } else if (typeof (parent.footer) == 'string') {
-                    out.push({Code: '_footer', Text: parent.footer});
+                    if (parent.footer.trim().length === 0) {
+                        out.push({Code: '_space', Text: parent.footer.trim()});
+                    } else {
+                        out.push({Code: '_footer', Text: parent.footer.trim()});
+                    }
                 }
             }
             //formatting text lines as html divs
