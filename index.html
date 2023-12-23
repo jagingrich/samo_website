@@ -1088,7 +1088,13 @@
                     //formatting text lines as html divs
                     var outDiv = document.createElement('div');
                     //formatting each text output based on text code
-                    out.slice().forEach((o) => outDiv.appendChild(txt.addDiv(o.Code, o.Text, o.src)) );
+                    out.slice().forEach((o) => {
+                        var newChild = txt.addDiv(o.Code, o.Text, o.src);
+                        if (JSON.stringify(o.Text.substring(0,1)) == JSON.stringify('\t')) {
+                            newChild.style.textIndent = '36px';
+                        }
+                        outDiv.appendChild(newChild);
+                    });
                     //output
                     parent.texts[desc] = {WebCode: desc, Text: out, Div: outDiv, Url: url};
                 }).always(function(){
