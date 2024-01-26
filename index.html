@@ -348,7 +348,6 @@
         var shpLayers = ['https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.shp',
                 'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.shp',
                 'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_AerialImagery_Overlay.shp'];
-        var attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace';
         var dropdownName = 'dropdown-contents';
 
         //setting description creation vars
@@ -376,6 +375,26 @@
         map.on('baselayerchange', function (e) {
             state.select = e.name;
         });
+
+        //function to add elements to map attribution
+        function addAttribution(text, title, href) {
+            var att = document.getElementsByClassName('leaflet-control-attribution')[0];
+            att.innerHTML += ' | ';
+            var newAtt;
+            if (href) {
+                newAtt = document.createElement('a');
+                newAtt.href = href;
+            } else {
+                newAtt = document.createElement('text');
+            }
+            newAtt.innerHTML = text;
+            if (title) {
+                newAtt.title = title;
+            }
+            att.appendChild(newAtt);
+        }
+        addAttribution('JAG2023');
+        addAttribution('AES', 'American Excavations Samothrace', 'https://www.samothrace.emory.edu/');
 
         //creating map bounds
         var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879), L.latLng(40.50176, 25.53177));
@@ -477,21 +496,12 @@
         }
 
         //formatting for tile layers
-        function tileLayer(url, setAttribution = false) {
-            if (setAttribution) {
-                return L.tileLayer(url, {
-                    maxZoom: 22,
-                    minZoom: 17,
-                    tms: true,
-                    attribution: attribution
-                });
-            } else {
-                return L.tileLayer(url, {
-                    maxZoom: 22,
-                    minZoom: 17,
-                    tms: true
-                });
-            }
+        function tileLayer(url) {
+            return L.tileLayer(url, {
+                maxZoom: 22,
+                minZoom: 17,
+                tms: true
+            });
         }
 
         //formatting for json overlay layers
@@ -688,13 +698,13 @@
                 groups.forEach(function (g) {
                     if (g.name != 'Other') {
                         if (t.match(g.keyword) != null) {
-                            tileLayer(t, true).addTo(g.layers);
+                            tileLayer(t).addTo(g.layers);
                             match = true;
                         }
                     }
                 });
                 if (!match) {
-                    tileLayer(t, true).addTo(groups[groups.findIndex((element) => element.name == "Other")].layers)
+                    tileLayer(t).addTo(groups[groups.findIndex((element) => element.name == "Other")].layers)
                 }
                 layersCount++;
                 updateProgress(tileLayers.length + shpFiles.length + 1);
