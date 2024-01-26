@@ -247,6 +247,26 @@
             }
         }
 
+        //layer selection state
+        const state = {
+            state: '',
+            update(state) {
+                var legend = document.getElementById('Legend');
+                if (state == 'Aerial Imagery') {
+                    legend.style.display = 'none';
+                } else {
+                    legend.style.display = 'block';
+                }
+            },
+            get select() {
+                return this.state;
+            },
+            set select(select) {
+                this.state = select;
+                this.update(this.state);
+            }
+        }
+
         //checking orientation state, resetting on change
         const orientation = {
             orient: 'portrait',
@@ -319,13 +339,15 @@
 
         //setting initial map variables
         var shpFiles = [];
-        var groups = [["Actual State Plan", "ActualState"], ["Restored State Plan", "RestoredState"]];
+        var groups = [["Actual State Plan", "ActualState"], ["Restored State Plan", "RestoredState"], ['Aerial Imagery', 'AerialImagery']];
         var tileLayers = ['https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStatePlan_3857/{z}/{x}/{y}.png',
                 'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStateMonuments_3857/{z}/{x}/{y}.png',
                 'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png',
-                'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png'];
+                'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png',
+                'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_AerialImagery_3857/{z}/{x}/{y}.png'];
         var shpLayers = ['https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.shp',
-                'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.shp'];
+                'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.shp',
+                'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_AerialImagery_Overlay.shp'];
         var attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace';
         var dropdownName = 'dropdown-contents';
 
@@ -350,6 +372,10 @@
             zoom: 18
         });
         var control = L.control.layers({}, null, { collapsed: false }).addTo(map);
+
+        map.on('baselayerchange', function (e) {
+            state.select = e.name;
+        });
 
         //creating map bounds
         var mapbounds = L.latLngBounds(L.latLng(40.49952, 25.52879), L.latLng(40.50176, 25.53177));
@@ -539,11 +565,17 @@
 
         //layer responsiveness
         function onEachFeature(feature, layer) {
-            layer.on({
-                mouseover: highlightFeature,
-                mouseout: resetHighlight,
-                click: (e, event) => selectFeature(e.target.feature.properties.WebCode)
-            });
+            if (layer.feature.properties.layerName.includes('AerialImagery')) {
+                layer.on({
+                    click: (e, event) => selectFeature(e.target.feature.properties.WebCode)
+                });
+            } else {
+                layer.on({
+                    mouseover: highlightFeature,
+                    mouseout: resetHighlight,
+                    click: (e, event) => selectFeature(e.target.feature.properties.WebCode)
+                });
+            }
         }
 
         //on changing dropdown selection
@@ -701,7 +733,10 @@
                 success: function () {
                     shp(url).then(function (out) {
                         out.name = url.split('/')[url.split('/').length - 1];
-                        out.features.forEach((f) => f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name);
+                        out.features.forEach((f) => {
+                            f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name;
+                            f.properties.layerName = out.name;
+                        });
                         shpFiles.push(out);
                         layerCounter.iteration++;
                     });
@@ -730,6 +765,7 @@
                     div.innerHTML +=
                         '<i style="background:' + getColor(grades[i]) + '"></i> ' + labels[i] + '<br>';
                 }
+                div.id = 'Legend';
 
                 return div;
             };
