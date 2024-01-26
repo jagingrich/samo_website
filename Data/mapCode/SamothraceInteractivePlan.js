@@ -3,14 +3,16 @@
 
 //update initial inputs for layers, groupings, urls, etc.
 function updateInputs() {
-    groups = [["Actual State Plan", "ActualState"], ["Restored State Plan", "RestoredState"]];
+    groups = [["Actual State Plan", "ActualState"], ["Restored State Plan", "RestoredState"], ['Aerial Imagery', 'AerialImagery']];
     tileLayers = ['https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStatePlan_3857/{z}/{x}/{y}.png',
         'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_ActualStateMonuments_3857/{z}/{x}/{y}.png',
         'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png',
-        'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png'];
+        'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png',
+        'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_AerialImagery_3857/{z}/{x}/{y}.png'];
     attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace';
     shpLayers = ['https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.shp',
-        'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.shp'];
+        'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.shp',
+        'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_AerialImagery_Overlay.shp'];
 
     dropdownName = 'dropdown-contents';
     //setting description creation vars
@@ -158,11 +160,17 @@ function selectFeature(webCode) {
 
 //layer responsiveness
 function onEachFeature(feature, layer) {
-    layer.on({
-        mouseover: highlightFeature,
-        mouseout: resetHighlight,
-        click: (e, event) => selectFeature(e.target.feature.properties.WebCode)
-    });
+    if (layer.feature.properties.layerName.includes('AerialImagery')) {
+        layer.on({
+            click: (e, event) => selectFeature(e.target.feature.properties.WebCode)
+        });
+    } else {
+        layer.on({
+            mouseover: highlightFeature,
+            mouseout: resetHighlight,
+            click: (e, event) => selectFeature(e.target.feature.properties.WebCode)
+        });
+    }
 }
 
 //on changing dropdown selection
@@ -320,7 +328,10 @@ function readSHPs(url) {
         success: function () {
             shp(url).then(function (out) {
                 out.name = url.split('/')[url.split('/').length - 1];
-                out.features.forEach((f) => f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name);
+                out.features.forEach((f) => {
+                    f.properties.fullName = '(' + f.properties.Label + ') ' + f.properties.Name;
+                    f.properties.layerName = out.name;
+                });
                 shpFiles.push(out);
                 layerCounter.iteration++;
             });
@@ -349,6 +360,7 @@ function addLegend() {
             div.innerHTML +=
                 '<i style="background:' + getColor(grades[i]) + '"></i> ' + labels[i] + '<br>';
         }
+        div.id = 'Legend';
 
         return div;
     };
