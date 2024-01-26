@@ -9,7 +9,6 @@ function updateInputs() {
         'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStatePlan_3857/{z}/{x}/{y}.png',
         'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_RestoredStateMonuments_3857/{z}/{x}/{y}.png',
         'https://raw.githubusercontent.com/jagingrich/samo_website/main/Data/mapTiles/SamoWebsite_AerialImagery_3857/{z}/{x}/{y}.png'];
-    attribution = 'JAG2023 | <a href="https://www.samothrace.emory.edu/">American Excavations Samothrace';
     shpLayers = ['https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_RestoredStatePlan_Overlay.shp',
         'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_ActualStatePlan_Overlay.shp',
         'https://cdn.rawgit.com/jagingrich/samo_website/main/Data/mapFeatures/SamoWeb_AerialImagery_Overlay.shp'];
@@ -72,21 +71,12 @@ function divCreate(divName, divContainer, type = 'div', functionOnCreate = null)
 }
 
 //formatting for tile layers
-function tileLayer(url, setAttribution = false) {
-    if (setAttribution) {
-        return L.tileLayer(url, {
-            maxZoom: 22,
-            minZoom: 17,
-            tms: true,
-            attribution: attribution
-        });
-    } else {
-        return L.tileLayer(url, {
-            maxZoom: 22,
-            minZoom: 17,
-            tms: true
-        });
-    }
+function tileLayer(url) {
+    return L.tileLayer(url, {
+        maxZoom: 22,
+        minZoom: 17,
+        tms: true
+    });
 }
 
 //formatting for json overlay layers
@@ -283,13 +273,13 @@ function addLayerGroups(mapInput, layerControl, layers, groups, functionOnLoad =
         groups.forEach(function (g) {
             if (g.name != 'Other') {
                 if (t.match(g.keyword) != null) {
-                    tileLayer(t, true).addTo(g.layers);
+                    tileLayer(t).addTo(g.layers);
                     match = true;
                 }
             }
         });
         if (!match) {
-            tileLayer(t, true).addTo(groups[groups.findIndex((element) => element.name == "Other")].layers)
+            tileLayer(t).addTo(groups[groups.findIndex((element) => element.name == "Other")].layers)
         }
         layersCount++;
         updateProgress(tileLayers.length + shpFiles.length + 1);
